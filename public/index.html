@@ -181,6 +181,11 @@
       border: 1px solid rgba(124,77,255,0.1); overflow: hidden;
       margin-bottom: 24px; animation: fadeIn 0.5s ease forwards;
     }
+    .fair-scroll, .ev-scroll {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .fair-scroll::-webkit-scrollbar, .ev-scroll::-webkit-scrollbar { height: 4px; }
+    .fair-scroll::-webkit-scrollbar-thumb, .ev-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
     .fair-head {
       padding: 12px 16px;
       background: linear-gradient(135deg, rgba(124,77,255,0.06), transparent);
@@ -200,7 +205,7 @@
     .fair-grid-header, .fair-grid-row {
       display: grid; padding: 9px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.03);
-      align-items: center;
+      align-items: center; min-width: 500px;
     }
     .fair-grid-header {
       border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -237,7 +242,7 @@
       display: grid;
       grid-template-columns: 1fr 90px 75px 75px 75px 65px;
       padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.03);
-      align-items: center;
+      align-items: center; min-width: 500px;
     }
     .ev-grid-header { border-bottom: 1px solid rgba(255,255,255,0.06); }
     .ev-grid-row.top { background: rgba(255,215,64,0.03); }
@@ -664,8 +669,10 @@ function renderFairTable() {
       <span class="fair-head-title">📊 Fair Probabilities</span>
       <span class="section-badge fair">DEVIGGED</span>
     </div>
-    <div class="fair-grid-header" style="display:grid;grid-template-columns:${colTemplate}">${headerCols}</div>
-    ${rows}
+    <div class="fair-scroll">
+      <div class="fair-grid-header" style="display:grid;grid-template-columns:${colTemplate}">${headerCols}</div>
+      ${rows}
+    </div>
   </div>`;
 }
 
@@ -692,15 +699,17 @@ function renderEVTable(results) {
       </div>
       <span class="ev-avg">Avg EV: +${avg.toFixed(1)}%</span>
     </div>
-    <div class="ev-grid-header">
-      <span class="col-label">Team</span>
-      <span class="col-label right">Book</span>
-      <span class="col-label right">Offered</span>
-      <span class="col-label right">Fair</span>
-      <span class="col-label right">EV</span>
-      <span class="col-label right">¼ Kelly</span>
+    <div class="ev-scroll">
+      <div class="ev-grid-header">
+        <span class="col-label">Team</span>
+        <span class="col-label right">Book</span>
+        <span class="col-label right">Offered</span>
+        <span class="col-label right">Fair</span>
+        <span class="col-label right">EV</span>
+        <span class="col-label right">¼ Kelly</span>
+      </div>
+      ${rows}
     </div>
-    ${rows}
   </div>`;
 }
 
