@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sharp Edge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0c;
+      --card: #131316;
+      --card-border: #1e1e24;
+      --sharp: #00e676;
+      --soft: #448aff;
+      --fair: #7c4dff;
+      --gold: #ffd740;
+      --red: #f44336;
+      --text: #e0e0e0;
+      --text2: #999;
+      --text3: #555;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --display: 'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Header ─── */
+    .header {
+      border-bottom: 1px solid var(--card-border);
+      padding: 18px 28px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: linear-gradient(180deg, #0f0f12, var(--bg));
+    }
+    .logo {
+      font-family: var(--display);
+      font-size: 22px; font-weight: 800;
+      background: linear-gradient(135deg, var(--sharp), #69f0ae, var(--fair));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+    .logo-sub {
+      font-size: 10px; color: var(--text3); font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase; margin-top: 2px;
+    }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .market-badge {
+      font-size: 11px; color: var(--fair); background: rgba(124,77,255,0.08);
+      padding: 5px 12px; border-radius: 7px; font-weight: 600;
+      border: 1px solid rgba(124,77,255,0.15);
+    }
+    .btn-reset {
+      background: #1a1a1f; border: 1px solid #333; color: #888;
+      padding: 7px 14px; border-radius: 7px; cursor: pointer;
+      font-size: 11px; font-weight: 600; font-family: var(--sans);
+      transition: all 0.2s;
+    }
+    .btn-reset:hover { border-color: var(--red); color: var(--red); }
+
+    /* ─── Layout ─── */
+    .container { padding: 22px 28px; max-width: 1200px; margin: 0 auto; }
+
+    /* ─── Steps ─── */
+    .steps { display: flex; gap: 8px; margin-bottom: 22px; }
+    .step {
+      flex: 1; padding: 9px 14px; border-radius: 9px;
+      background: #0d0d0f; border: 1px solid var(--card-border);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      color: #444; transition: all 0.3s;
+    }
+    .step.active { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); color: #eee; }
+    .step.done { background: rgba(0,230,118,0.06); border-color: rgba(0,230,118,0.15); color: var(--sharp); }
+
+    /* ─── Drop Zones ─── */
+    .drops { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+    .drop {
+      border: 2px dashed #2a2a30; border-radius: 14px;
+      padding: 36px 20px; text-align: center; cursor: pointer;
+      background: #111113; transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .drop.disabled { opacity: 0.35; cursor: not-allowed; }
+    .drop.drag-over { background: rgba(0,230,118,0.05); }
+    .drop.drag-over.sharp { border-color: var(--sharp); }
+    .drop.drag-over.soft { border-color: var(--soft); }
+    .drop.has-data.sharp { border-color: rgba(0,230,118,0.3); }
+    .drop.has-data.soft { border-color: rgba(68,138,255,0.3); }
+    .drop-icon { font-size: 32px; margin-bottom: 10px; }
+    .drop-label {
+      font-size: 14px; font-weight: 700; color: #aaa;
+      letter-spacing: 0.02em; margin-bottom: 4px;
+    }
+    .drop.has-data.sharp .drop-label { color: var(--sharp); }
+    .drop.has-data.soft .drop-label { color: var(--soft); }
+    .drop-sub { font-size: 11px; color: #666; }
+    .drop-bar {
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      display: none;
+    }
+    .drop.has-data .drop-bar { display: block; }
+    .drop.has-data.sharp .drop-bar { background: linear-gradient(90deg, transparent, var(--sharp), transparent); }
+    .drop.has-data.soft .drop-bar { background: linear-gradient(90deg, transparent, var(--soft), transparent); }
+
+    /* ─── Book Cards ─── */
+    .books { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+    .books-col { display: flex; flex-direction: column; gap: 14px; }
+    .book-card {
+      background: var(--card); border-radius: 12px;
+      border: 1px solid var(--card-border); overflow: hidden;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    .book-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .book-head.sharp { background: linear-gradient(135deg, rgba(0,230,118,0.06), transparent); }
+    .book-head.soft { background: linear-gradient(135deg, rgba(68,138,255,0.06), transparent); }
+    .book-name {
+      display: flex; align-items: center; gap: 9px;
+    }
+    .book-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+    .book-dot.sharp { background: var(--sharp); box-shadow: 0 0 7px rgba(0,230,118,0.4); }
+    .book-dot.soft { background: var(--soft); box-shadow: 0 0 7px rgba(68,138,255,0.4); }
+    .book-label {
+      font-weight: 700; font-size: 13px; color: #eee;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .book-badge {
+      font-size: 9px; font-weight: 600; padding: 2px 7px;
+      border-radius: 5px; font-family: var(--sans);
+    }
+    .book-badge.sharp { color: var(--sharp); background: rgba(0,230,118,0.1); }
+    .book-badge.soft { color: var(--soft); background: rgba(68,138,255,0.1); }
+    .book-remove {
+      background: none; border: none; color: #555; cursor: pointer;
+      font-size: 14px; padding: 2px 5px; border-radius: 4px; transition: color 0.2s;
+    }
+    .book-remove:hover { color: var(--red); }
+    .book-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.025);
+    }
+    .book-team { font-size: 12px; color: #ccc; font-weight: 500; }
+    .book-row-right { display: flex; align-items: center; gap: 9px; }
+    .book-odds {
+      font-family: var(--mono); font-size: 13px; font-weight: 700;
+      min-width: 56px; text-align: right;
+    }
+    .book-odds.sharp { color: var(--sharp); }
+    .book-odds.soft { color: var(--soft); }
+    .ev-inline {
+      font-size: 10px; font-weight: 700; font-family: var(--mono);
+      padding: 1px 7px; border-radius: 5px;
+    }
+    .ev-inline.pos { color: var(--sharp); background: rgba(0,230,118,0.08); }
+    .ev-inline.neg { color: var(--red); background: rgba(244,67,54,0.08); }
+
+    /* ─── Fair Odds Table ─── */
+    .fair-table {
+      background: var(--card); border-radius: 12px;
+      border: 1px solid rgba(124,77,255,0.1); overflow: hidden;
+      margin-bottom: 24px; animation: fadeIn 0.5s ease forwards;
+    }
+    .fair-head {
+      padding: 12px 16px;
+      background: linear-gradient(135deg, rgba(124,77,255,0.06), transparent);
+      border-bottom: 1px solid rgba(124,77,255,0.06);
+      display: flex; align-items: center; gap: 9px;
+    }
+    .fair-head-title {
+      font-weight: 700; font-size: 13px; color: #eee;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .section-badge {
+      font-size: 9px; font-weight: 600; padding: 2px 7px;
+      border-radius: 5px;
+    }
+    .section-badge.fair { color: var(--fair); background: rgba(124,77,255,0.1); }
+    .section-badge.gold { color: var(--gold); background: rgba(255,215,64,0.1); }
+    .fair-grid-header, .fair-grid-row {
+      display: grid; padding: 9px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      align-items: center;
+    }
+    .fair-grid-header {
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .col-label {
+      font-size: 9px; color: #666; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .col-label.right { text-align: right; }
+    .col-label.sharp-col { color: var(--sharp); }
+    .col-label.fair-col { color: var(--fair); }
+    .cell { font-size: 12px; font-family: var(--mono); font-weight: 600; }
+    .cell.team { font-family: var(--sans); color: #ccc; font-weight: 500; }
+    .cell.right { text-align: right; }
+    .cell.sharp-val { color: rgba(0,230,118,0.65); }
+    .cell.fair-prob { color: #e0e0e0; font-weight: 700; }
+    .cell.fair-odds { color: var(--fair); font-weight: 700; }
+
+    /* ─── EV Results ─── */
+    .ev-table {
+      background: var(--card); border-radius: 12px;
+      border: 1px solid rgba(255,215,64,0.1); overflow: hidden;
+      margin-bottom: 24px; animation: fadeIn 0.5s ease forwards;
+    }
+    .ev-head {
+      padding: 12px 16px;
+      background: linear-gradient(135deg, rgba(255,215,64,0.06), transparent);
+      border-bottom: 1px solid rgba(255,215,64,0.06);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .ev-head-left { display: flex; align-items: center; gap: 9px; }
+    .ev-avg { font-size: 11px; color: #888; }
+    .ev-grid-header, .ev-grid-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 75px 75px 75px 65px;
+      padding: 9px 16px; border-bottom: 1px solid rgba(255,255,255,0.03);
+      align-items: center;
+    }
+    .ev-grid-header { border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .ev-grid-row.top { background: rgba(255,215,64,0.03); }
+    .ev-team { font-size: 12px; color: #eee; font-weight: 600; }
+    .ev-book { font-size: 11px; color: var(--soft); font-weight: 600; text-align: right; }
+    .ev-offered { font-family: var(--mono); font-size: 12px; color: var(--soft); font-weight: 700; text-align: right; }
+    .ev-fair { font-family: var(--mono); font-size: 12px; color: var(--fair); font-weight: 600; text-align: right; }
+    .ev-pct {
+      font-family: var(--mono); font-size: 12px; font-weight: 700; text-align: right;
+    }
+    .ev-pct.hot { color: var(--gold); }
+    .ev-pct.good { color: var(--sharp); }
+    .ev-pct.ok { color: #69f0ae; }
+    .ev-kelly { font-family: var(--mono); font-size: 11px; color: #aaa; font-weight: 500; text-align: right; }
+
+    /* ─── Empty State ─── */
+    .empty {
+      text-align: center; padding: 56px 20px; color: #444; font-size: 13px;
+    }
+    .empty-icon { font-size: 44px; margin-bottom: 14px; opacity: 0.5; }
+    .empty-title { font-weight: 600; color: #666; margin-bottom: 6px; }
+
+    /* ─── Loading Overlay ─── */
+    .loading-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px); display: flex; flex-direction: column;
+      justify-content: center; align-items: center; z-index: 1000;
+    }
+    .spinner {
+      width: 44px; height: 44px; border: 3px solid #333;
+      border-top-color: var(--sharp); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-msg {
+      margin-top: 18px; font-size: 13px; color: #aaa; font-weight: 500;
+    }
+
+    /* ─── Error Banner ─── */
+    .error-banner {
+      margin: 14px 28px 0; padding: 10px 16px;
+      background: rgba(244,67,54,0.07); border: 1px solid rgba(244,67,54,0.18);
+      border-radius: 9px; font-size: 12px; color: var(--red);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .error-close {
+      background: none; border: none; color: var(--red);
+      cursor: pointer; font-size: 13px;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 700px) {
+      .drops, .books { grid-template-columns: 1fr; }
+      .steps { flex-direction: column; }
+      .ev-grid-header, .ev-grid-row {
+        grid-template-columns: 1fr 70px 60px 60px 60px 50px;
+        font-size: 11px;
+      }
+      .container { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">SHARP EDGE</div>
+    <div class="logo-sub">Devig · Compare · Profit</div>
+  </div>
+  <div class="header-right">
+    <span class="market-badge" id="marketBadge" style="display:none"></span>
+    <button class="btn-reset" onclick="resetAll()">Reset</button>
+  </div>
+</div>
+
+<div id="errorBanner" class="error-banner" style="display:none">
+  <span id="errorMsg"></span>
+  <button class="error-close" onclick="hideError()">✕</button>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay" style="display:none">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loadingMsg">Parsing...</div>
+</div>
+
+<div class="container">
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step" id="step1">1. Upload Sharp Books</div>
+    <div class="step" id="step2">2. Upload Soft Books</div>
+    <div class="step" id="step3">3. View Best Bets</div>
+  </div>
+
+  <!-- Drop Zones -->
+  <div class="drops">
+    <div class="drop sharp" id="dropSharp" onclick="document.getElementById('inputSharp').click()">
+      <div class="drop-bar"></div>
+      <div class="drop-icon">📐</div>
+      <div class="drop-label">Drop Sharp Book Screenshots</div>
+      <div class="drop-sub">Circa, FanDuel, Pinnacle, etc.</div>
+      <input type="file" id="inputSharp" accept="image/*" multiple hidden />
+    </div>
+    <div class="drop soft disabled" id="dropSoft" onclick="handleSoftClick()">
+      <div class="drop-bar"></div>
+      <div class="drop-icon">🎯</div>
+      <div class="drop-label">Drop Soft Book Screenshots</div>
+      <div class="drop-sub">DraftKings, BetMGM, Caesars, etc.</div>
+      <input type="file" id="inputSoft" accept="image/*" multiple hidden />
+    </div>
+  </div>
+
+  <!-- Books Grid -->
+  <div class="books" id="booksGrid" style="display:none">
+    <div class="books-col" id="sharpCol"></div>
+    <div class="books-col" id="softCol"></div>
+  </div>
+
+  <!-- Fair Odds Table -->
+  <div id="fairSection"></div>
+
+  <!-- EV Results -->
+  <div id="evSection"></div>
+
+  <!-- Empty State -->
+  <div class="empty" id="emptyState">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">No data loaded yet</div>
+    <div>Start by uploading screenshots from your sharp books above</div>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────
+let sharpOdds = {};   // {bookName: {team: odds}}
+let softOdds = {};
+let fairProbs = {};
+let market = null;
+
+// ─── Math ────────────────────────────────────────────────────
+function americanToImplied(am) {
+  return am > 0 ? 100 / (am + 100) : Math.abs(am) / (Math.abs(am) + 100);
+}
+function impliedToAmerican(p) {
+  if (p <= 0) return 0;
+  if (p >= 1) return -99999;
+  return p >= 0.5 ? Math.round(-100 * p / (1 - p)) : Math.round(100 * (1 - p) / p);
+}
+function devigMult(odds) {
+  const imp = {}; let total = 0;
+  for (const [t, o] of Object.entries(odds)) { imp[t] = americanToImplied(o); total += imp[t]; }
+  const fair = {};
+  for (const [t, p] of Object.entries(imp)) fair[t] = p / total;
+  return fair;
+}
+function calcEV(fp, am) {
+  const dec = am > 0 ? 1 + am / 100 : 1 + 100 / Math.abs(am);
+  return (fp * dec - 1) * 100;
+}
+function calcKelly(fp, am, frac = 0.25) {
+  const dec = am > 0 ? 1 + am / 100 : 1 + 100 / Math.abs(am);
+  const b = dec - 1;
+  if (b <= 0) return 0;
+  return Math.max(0, ((fp * b - (1 - fp)) / b) * frac * 100);
+}
+function normTeam(n) {
+  const map = {ny:"new york",tor:"toronto",bos:"boston",bal:"baltimore",tb:"tampa bay",
+    cle:"cleveland",min:"minnesota",chi:"chicago",det:"detroit",kc:"kansas city",
+    la:"los angeles",sf:"san francisco",sd:"san diego",stl:"st. louis",
+    was:"washington",phi:"philadelphia",pit:"pittsburgh",mil:"milwaukee",
+    cin:"cincinnati",ari:"arizona",col:"colorado",atl:"atlanta",mia:"miami",
+    hou:"houston",tex:"texas",sea:"seattle",oak:"oakland"};
+  let s = n.toLowerCase().trim();
+  for (const [a, f] of Object.entries(map)) if (s.startsWith(a + " ")) s = f + s.slice(a.length);
+  return s;
+}
+function avgFairProbs(so) {
+  const all = {};
+  for (const [, odds] of Object.entries(so)) {
+    const f = devigMult(odds);
+    for (const [t, p] of Object.entries(f)) {
+      const n = normTeam(t);
+      if (!all[n]) all[n] = { probs: [], display: t };
+      all[n].probs.push(p);
+    }
+  }
+  const res = {};
+  for (const [, d] of Object.entries(all)) res[d.display] = d.probs.reduce((a, b) => a + b, 0) / d.probs.length;
+  return res;
+}
+function findEV(fp, so, minEV = 0) {
+  const res = [];
+  for (const [bn, odds] of Object.entries(so)) {
+    for (const [t, am] of Object.entries(odds)) {
+      let prob = null, mt = null;
+      for (const [ft, p] of Object.entries(fp)) {
+        if (normTeam(ft) === normTeam(t)) { prob = p; mt = ft; break; }
+      }
+      if (prob === null) continue;
+      const ev = calcEV(prob, am);
+      if (ev > minEV) res.push({ team: mt || t, book: bn, softOdds: am,
+        fairOdds: impliedToAmerican(prob), fairProb: prob, ev, kelly: calcKelly(prob, am) });
+    }
+  }
+  return res.sort((a, b) => b.ev - a.ev);
+}
+
+// ─── API ─────────────────────────────────────────────────────
+async function parseImage(base64, mediaType, hint = "") {
+  const resp = await fetch("/api/parse", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_base64: base64, media_type: mediaType, book_hint: hint }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error || "API request failed");
+  }
+  return resp.json();
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ─── Handlers ────────────────────────────────────────────────
+async function handleFiles(files, isSharp) {
+  hideError();
+  const fileArr = Array.from(files).filter(f => f.type.startsWith("image/"));
+  if (!fileArr.length) return;
+
+  for (let i = 0; i < fileArr.length; i++) {
+    const file = fileArr[i];
+    try {
+      showLoading(`Parsing ${isSharp ? "sharp" : "soft"} image ${i + 1}/${fileArr.length}...`);
+      const b64 = await fileToBase64(file);
+      const mt = file.type || "image/jpeg";
+      const parsed = await parseImage(b64, mt);
+      const bookName = parsed.book_name || "Unknown";
+
+      if (isSharp) {
+        sharpOdds[bookName] = { ...(sharpOdds[bookName] || {}), ...parsed.odds };
+        fairProbs = avgFairProbs(sharpOdds);
+      } else {
+        softOdds[bookName] = { ...(softOdds[bookName] || {}), ...parsed.odds };
+      }
+      if (parsed.market && !market) market = parsed.market;
+    } catch (e) {
+      showError(`Failed to parse ${file.name}: ${e.message}`);
+    }
+  }
+  hideLoading();
+  render();
+}
+
+function handleSoftClick() {
+  if (Object.keys(sharpOdds).length === 0) return;
+  document.getElementById("inputSoft").click();
+}
+
+function removeBook(name, isSharp) {
+  if (isSharp) { delete sharpOdds[name]; fairProbs = Object.keys(sharpOdds).length ? avgFairProbs(sharpOdds) : {}; }
+  else delete softOdds[name];
+  render();
+}
+
+function resetAll() {
+  sharpOdds = {}; softOdds = {}; fairProbs = {}; market = null;
+  render();
+}
+
+// ─── UI Helpers ──────────────────────────────────────────────
+function showLoading(msg) {
+  document.getElementById("loadingMsg").textContent = msg;
+  document.getElementById("loadingOverlay").style.display = "flex";
+}
+function hideLoading() { document.getElementById("loadingOverlay").style.display = "none"; }
+function showError(msg) {
+  document.getElementById("errorMsg").textContent = msg;
+  document.getElementById("errorBanner").style.display = "flex";
+}
+function hideError() { document.getElementById("errorBanner").style.display = "none"; }
+
+function sign(n) { return n > 0 ? "+" + n : "" + n; }
+
+// ─── Render ──────────────────────────────────────────────────
+function render() {
+  const hasSharp = Object.keys(sharpOdds).length > 0;
+  const hasSoft = Object.keys(softOdds).length > 0;
+  const evResults = (hasSharp && hasSoft) ? findEV(fairProbs, softOdds) : [];
+
+  // Steps
+  const s1 = document.getElementById("step1");
+  const s2 = document.getElementById("step2");
+  const s3 = document.getElementById("step3");
+  s1.className = "step" + (hasSharp ? " done" : " active");
+  s1.textContent = (hasSharp ? "✓ " : "") + "1. Upload Sharp Books";
+  s2.className = "step" + (hasSoft ? " done" : hasSharp ? " active" : "");
+  s2.textContent = (hasSoft ? "✓ " : "") + "2. Upload Soft Books";
+  s3.className = "step" + (evResults.length ? " done" : (hasSharp && hasSoft) ? " active" : "");
+  s3.textContent = (evResults.length ? "✓ " : "") + "3. View Best Bets";
+
+  // Market badge
+  const mb = document.getElementById("marketBadge");
+  if (market) { mb.style.display = ""; mb.textContent = market; }
+  else mb.style.display = "none";
+
+  // Drop zones
+  const ds = document.getElementById("dropSharp");
+  const dso = document.getElementById("dropSoft");
+  ds.className = "drop sharp" + (hasSharp ? " has-data" : "");
+  dso.className = "drop soft" + (hasSoft ? " has-data" : "") + (!hasSharp ? " disabled" : "");
+
+  // Empty state
+  document.getElementById("emptyState").style.display = (!hasSharp && !hasSoft) ? "" : "none";
+
+  // Books grid
+  const bg = document.getElementById("booksGrid");
+  bg.style.display = (hasSharp || hasSoft) ? "" : "none";
+
+  // Sharp cards
+  const sc = document.getElementById("sharpCol");
+  sc.innerHTML = "";
+  for (const [name, odds] of Object.entries(sharpOdds)) {
+    sc.innerHTML += renderBookCard(name, odds, true);
+  }
+
+  // Soft cards
+  const soc = document.getElementById("softCol");
+  soc.innerHTML = "";
+  for (const [name, odds] of Object.entries(softOdds)) {
+    soc.innerHTML += renderBookCard(name, odds, false);
+  }
+
+  // Fair table
+  document.getElementById("fairSection").innerHTML = hasSharp ? renderFairTable() : "";
+
+  // EV results
+  document.getElementById("evSection").innerHTML = evResults.length ? renderEVTable(evResults) : "";
+}
+
+function renderBookCard(name, odds, isSharp) {
+  const type = isSharp ? "sharp" : "soft";
+  const sorted = Object.entries(odds).sort((a, b) => americanToImplied(b[1]) - americanToImplied(a[1]));
+  let rows = "";
+  for (const [team, am] of sorted) {
+    let evTag = "";
+    if (!isSharp && Object.keys(fairProbs).length) {
+      for (const [ft, p] of Object.entries(fairProbs)) {
+        if (normTeam(ft) === normTeam(team)) {
+          const ev = calcEV(p, am);
+          const cls = ev > 0 ? "pos" : "neg";
+          evTag = `<span class="ev-inline ${cls}">${ev > 0 ? "+" : ""}${ev.toFixed(1)}%</span>`;
+          break;
+        }
+      }
+    }
+    rows += `<div class="book-row">
+      <span class="book-team">${team}</span>
+      <div class="book-row-right">${evTag}<span class="book-odds ${type}">${sign(am)}</span></div>
+    </div>`;
+  }
+  return `<div class="book-card">
+    <div class="book-head ${type}">
+      <div class="book-name">
+        <div class="book-dot ${type}"></div>
+        <span class="book-label">${name}</span>
+        <span class="book-badge ${type}">${isSharp ? "SHARP" : "SOFT"}</span>
+      </div>
+      <button class="book-remove" onclick="removeBook('${name.replace(/'/g, "\\'")}', ${isSharp})">✕</button>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+function renderFairTable() {
+  const books = Object.keys(sharpOdds);
+  const sorted = Object.entries(fairProbs).sort((a, b) => b[1] - a[1]);
+  const cols = books.length + 3; // team + N sharp + prob + fair odds
+  const colTemplate = `1fr ${books.map(() => "85px").join(" ")} 75px 75px`;
+
+  let headerCols = `<span class="col-label">Team</span>`;
+  for (const b of books) headerCols += `<span class="col-label right sharp-col">${b}</span>`;
+  headerCols += `<span class="col-label right fair-col">Fair Prob</span>`;
+  headerCols += `<span class="col-label right fair-col">Fair Odds</span>`;
+
+  let rows = "";
+  for (const [team, prob] of sorted) {
+    let cells = `<span class="cell team">${team}</span>`;
+    for (const b of books) {
+      let matched = "—";
+      for (const [t, o] of Object.entries(sharpOdds[b])) {
+        if (normTeam(t) === normTeam(team)) { matched = sign(o); break; }
+      }
+      cells += `<span class="cell right sharp-val">${matched}</span>`;
+    }
+    cells += `<span class="cell right fair-prob">${(prob * 100).toFixed(1)}%</span>`;
+    cells += `<span class="cell right fair-odds">${sign(impliedToAmerican(prob))}</span>`;
+    rows += `<div class="fair-grid-row" style="display:grid;grid-template-columns:${colTemplate}">${cells}</div>`;
+  }
+
+  return `<div class="fair-table">
+    <div class="fair-head">
+      <span class="fair-head-title">📊 Fair Probabilities</span>
+      <span class="section-badge fair">DEVIGGED</span>
+    </div>
+    <div class="fair-grid-header" style="display:grid;grid-template-columns:${colTemplate}">${headerCols}</div>
+    ${rows}
+  </div>`;
+}
+
+function renderEVTable(results) {
+  const avg = results.reduce((s, r) => s + r.ev, 0) / results.length;
+  let rows = "";
+  results.forEach((r, i) => {
+    const evCls = r.ev >= 10 ? "hot" : r.ev >= 5 ? "good" : "ok";
+    rows += `<div class="ev-grid-row${i === 0 ? " top" : ""}">
+      <span class="ev-team">${r.team}${i === 0 ? " 🔥" : ""}</span>
+      <span class="ev-book">${r.book}</span>
+      <span class="ev-offered">${sign(r.softOdds)}</span>
+      <span class="ev-fair">${sign(r.fairOdds)}</span>
+      <span class="ev-pct ${evCls}">+${r.ev.toFixed(1)}%</span>
+      <span class="ev-kelly">${r.kelly.toFixed(1)}%</span>
+    </div>`;
+  });
+
+  return `<div class="ev-table">
+    <div class="ev-head">
+      <div class="ev-head-left">
+        <span class="fair-head-title">💰 Best Bets</span>
+        <span class="section-badge gold">${results.length} FOUND</span>
+      </div>
+      <span class="ev-avg">Avg EV: +${avg.toFixed(1)}%</span>
+    </div>
+    <div class="ev-grid-header">
+      <span class="col-label">Team</span>
+      <span class="col-label right">Book</span>
+      <span class="col-label right">Offered</span>
+      <span class="col-label right">Fair</span>
+      <span class="col-label right">EV</span>
+      <span class="col-label right">¼ Kelly</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// ─── Drag & Drop + File Input ────────────────────────────────
+function setupDrop(el, isSharp) {
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("drag-over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+  el.addEventListener("drop", e => {
+    e.preventDefault(); el.classList.remove("drag-over");
+    if (!isSharp && Object.keys(sharpOdds).length === 0) return;
+    handleFiles(e.dataTransfer.files, isSharp);
+  });
+}
+setupDrop(document.getElementById("dropSharp"), true);
+setupDrop(document.getElementById("dropSoft"), false);
+
+document.getElementById("inputSharp").addEventListener("change", e => {
+  handleFiles(e.target.files, true); e.target.value = "";
+});
+document.getElementById("inputSoft").addEventListener("change", e => {
+  handleFiles(e.target.files, false); e.target.value = "";
+});
+
+// Initial render
+render();
+</script>
+</body>
+</html>
