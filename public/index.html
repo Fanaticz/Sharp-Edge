@@ -507,6 +507,20 @@ function removeBook(name, isSharp) {
   render();
 }
 
+function renameBook(oldName, isSharp) {
+  const newName = prompt("Rename book:", oldName);
+  if (!newName || newName === oldName) return;
+  if (isSharp) {
+    sharpOdds[newName] = sharpOdds[oldName];
+    delete sharpOdds[oldName];
+    fairProbs = avgFairProbs(sharpOdds);
+  } else {
+    softOdds[newName] = softOdds[oldName];
+    delete softOdds[oldName];
+  }
+  render();
+}
+
 function resetAll() {
   sharpOdds = {}; softOdds = {}; fairProbs = {}; market = null;
   render();
@@ -610,7 +624,10 @@ function renderBookCard(name, odds, isSharp) {
         <span class="book-label">${name}</span>
         <span class="book-badge ${type}">${isSharp ? "SHARP" : "SOFT"}</span>
       </div>
-      <button class="book-remove" onclick="removeBook('${name.replace(/'/g, "\\'")}', ${isSharp})">✕</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="book-remove" onclick="renameBook('${name.replace(/'/g, "\\'")}', ${isSharp})" title="Rename">✎</button>
+        <button class="book-remove" onclick="removeBook('${name.replace(/'/g, "\\'")}', ${isSharp})" title="Remove">✕</button>
+      </div>
     </div>
     ${rows}
   </div>`;
