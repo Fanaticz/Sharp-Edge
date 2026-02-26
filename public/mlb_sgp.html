@@ -95,12 +95,15 @@ function handleSearch(el) {
   search = el.value;
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(() => {
-    const pos = el.selectionStart;
-    render();
-    // Refocus after render
-    const inp = document.getElementById("searchInput");
-    if(inp) { inp.focus(); inp.setSelectionRange(pos, pos); }
-  }, 200);
+    // Only rebuild the table, not the whole page
+    const tableWrap = document.getElementById("corrTable");
+    if(tableWrap) {
+      tableWrap.innerHTML = buildTable();
+      // Update pair count
+      const pc = document.getElementById("pairCountInline");
+      if(pc) pc.textContent = getFilteredPairs().length + " pairs";
+    }
+  }, 250);
 }
 
 function getCorr(pair, mode) {
@@ -213,7 +216,7 @@ function render() {
       <button class="${dataMode==="adj"?"a":""}" onclick="dataMode='adj';render()">ADJACENT</button>
       <button class="${dataMode==="2025"?"a":""}" onclick="dataMode='2025';render()">2025</button>
     </div>
-    <span style="font-size:10px;color:var(--t3);font-family:var(--m);margin-left:auto">${pairs.length} pairs</span>
+    <span id="pairCountInline" style="font-size:10px;color:var(--t3);font-family:var(--m);margin-left:auto">${pairs.length} pairs</span>
   </div>`;
   
   // Stat filter row
@@ -243,6 +246,16 @@ function render() {
     <span><span class="legend-dot" style="background:#94a3b8"></span>Weak (0.15-0.3)</span>
     <span style="margin-left:auto;font-style:italic">Click any row for full matrix →</span>
   </div>`;
+  
+  // Table wrapper - updated separately by search
+  html += `<div id="corrTable">${buildTable()}</div>`;
+  
+  app.innerHTML = html;
+}
+
+function buildTable() {
+  const pairs = getFilteredPairs();
+  let html = "";
   
   // Table
   const sortIcon = (col) => sortCol === col ? (sortDir > 0 ? " ↑" : " ↓") : "";
@@ -293,7 +306,7 @@ function render() {
   html += `</tbody></table></div>`;
   if(pairs.length > 200) html += `<div style="text-align:center;padding:10px;font-size:11px;color:var(--t3);font-family:var(--m)">Showing 200 of ${pairs.length} pairs. Use filters to narrow.</div>`;
   
-  app.innerHTML = html;
+  return html;
 }
 
 // ─── DETAIL PANEL ───
