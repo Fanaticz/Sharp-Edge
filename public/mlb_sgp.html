@@ -1051,133 +1051,76 @@ render = function() {
 render();
 
 // ═══════════════════════════════════════════════════════════════
-// ROSTER VERIFICATION - Filter to current teammates only
+// ROSTER VERIFICATION - Static FanGraphs Depth Chart Rosters (Feb 2026)
 // ═══════════════════════════════════════════════════════════════
 
-let rosterData = null; // {teamName: Set of player names}
+const ROSTERS_2026 = {"Arizona Diamondbacks":["Geraldo Perdomo","Ketel Marte","Corbin Carroll","Nolan Arenado","Pavin Smith","Gabriel Moreno","Alek Thomas","Jordan Lawlar","Lourdes Gurriel Jr.","Blaze Alexander","Tyler Locklear"],"Athletics":["Jeff McNeil","Jacob Wilson","Nick Kurtz","Brent Rooker","Tyler Soderstrom","Shea Langeliers","Lawrence Butler","Denzel Clarke","Zack Gelof","Luis Rengifo","Seth Brown"],"Atlanta Braves":["Jurickson Profar","Matt Olson","Ronald Acuna Jr.","Drake Baldwin","Austin Riley","Michael Harris II","Ozzie Albies","Mike Yastrzemski","Mauricio Dubon","Jorge Mateo","Sean Murphy"],"Baltimore Orioles":["Jackson Holliday","Jordan Westburg","Gunnar Henderson","Pete Alonso","Adley Rutschman","Taylor Ward","Colton Cowser","Tyler O'Neill","Samuel Basallo","Dylan Beavers","Heston Kjerstad","Ryan Mountcastle"],"Boston Red Sox":["Roman Anthony","Trevor Story","Jarren Duran","Willson Contreras","Wilyer Abreu","Carlos Narvaez","Marcelo Mayer","Romy Gonzalez","Ceddanne Rafaela","Isiah Kiner-Falefa"],"Chicago Cubs":["Michael Busch","Alex Bregman","Ian Happ","Seiya Suzuki","Pete Crow-Armstrong","Nico Hoerner","Carson Kelly","Moises Ballesteros","Dansby Swanson","Matt Shaw","Shota Imanaga"],"Chicago White Sox":["Chase Meidroth","Kyle Teel","Colson Montgomery","Miguel Vargas","Munetaka Murakami","Lenyn Sosa","Andrew Benintendi","Luisangel Acuna","Everson Pereira","Brooks Baldwin"],"Cincinnati Reds":["TJ Friedl","Noelvi Marte","Elly De La Cruz","Spencer Steer","Eugenio Suarez","Tyler Stephenson","JJ Bleday","Ke'Bryan Hayes","Matt McLain","Sal Stewart","Dane Myers"],"Cleveland Guardians":["Steven Kwan","George Valera","Jose Ramirez","Kyle Manzardo","Chase DeLauter","Travis Bazzana","CJ Kayfus","Bo Naylor","Gabriel Arias","Daniel Schneemann"],"Colorado Rockies":["Ezequiel Tovar","Mickey Moniak","Hunter Goodman","Jordan Beck","Edouard Julien","Brenton Doyle","Willi Castro","Ryan Ritter","Jake McCarthy","Adael Amador"],"Detroit Tigers":["Colt Keith","Gleyber Torres","Kerry Carpenter","Riley Greene","Spencer Torkelson","Wenceel Perez","Dillon Dingler","Kevin McGonigle","Parker Meadows","Javier Baez"],"Houston Astros":["Jeremy Pena","Yordan Alvarez","Jose Altuve","Carlos Correa","Isaac Paredes","Christian Walker","Yainer Diaz","Cam Smith","Jake Meyers","Jesus Sanchez","Zach Cole"],"Kansas City Royals":["Maikel Garcia","Bobby Witt Jr.","Vinnie Pasquantino","Salvador Perez","Jac Caglianone","Jonathan India","Carter Jensen","Isaac Collins","Kyle Isbel","Lane Thomas","Drew Waters"],"Los Angeles Angels":["Zach Neto","Nolan Schanuel","Mike Trout","Jorge Soler","Josh Lowe","Jo Adell","Yoan Moncada","Logan O'Hoppe","Christian Moore","Vaughn Grissom"],"Los Angeles Dodgers":["Shohei Ohtani","Mookie Betts","Freddie Freeman","Will Smith","Kyle Tucker","Teoscar Hernandez","Max Muncy","Andy Pages","Miguel Rojas","Hyeseong Kim","Tommy Edman"],"Miami Marlins":["Xavier Edwards","Jakob Marsee","Kyle Stowers","Agustin Ramirez","Owen Caissie","Otto Lopez","Nathaniel Lowe","Joe Mack","Connor Norby","Christopher Morel"],"Milwaukee Brewers":["Jackson Chourio","Brice Turang","William Contreras","Christian Yelich","Andrew Vaughn","Sal Frelick","Caleb Durbin","Garrett Mitchell","Joey Ortiz","Blake Perkins","Jake Bauers"],"Minnesota Twins":["Byron Buxton","Luke Keaschall","Josh Bell","Matt Wallner","Royce Lewis","Trevor Larnach","Marcell Ozuna","Ryan Jeffers","Brooks Lee","James Outman","Austin Martin"],"New York Mets":["Francisco Lindor","Juan Soto","Bo Bichette","Jorge Polanco","Marcus Semien","Brett Baty","Luis Robert Jr.","Mark Vientos","Francisco Alvarez","Carson Benge","Tyrone Taylor"],"New York Yankees":["Trent Grisham","Aaron Judge","Cody Bellinger","Giancarlo Stanton","Jazz Chisholm Jr.","Ben Rice","Ryan McMahon","Jose Caballero","Austin Wells","Paul Goldschmidt","Oswaldo Cabrera"],"Philadelphia Phillies":["Kyle Schwarber","Trea Turner","Bryce Harper","Alec Bohm","Brandon Marsh","Adolis Garcia","Bryson Stott","JT Realmuto","Justin Crawford","Johan Rojas"],"Pittsburgh Pirates":["Spencer Horwitz","Brandon Lowe","Bryan Reynolds","Ryan O'Hearn","Nick Gonzales","Oneil Cruz","Joey Bart","Jake Mangum","Jared Triolo","Konnor Griffin","Andrew McCutchen"],"San Diego Padres":["Fernando Tatis Jr.","Jackson Merrill","Manny Machado","Gavin Sheets","Ramon Laureano","Xander Bogaerts","Miguel Andujar","Jake Cronenworth","Freddy Fermin","Nick Castellanos"],"San Francisco Giants":["Heliot Ramos","Rafael Devers","Willy Adames","Matt Chapman","Bryce Eldridge","Harrison Bader","Jung Hoo Lee","Casey Schmitt","Patrick Bailey","Luis Arraez","Tyler Fitzgerald"],"Seattle Mariners":["Julio Rodriguez","Cal Raleigh","Josh Naylor","Randy Arozarena","Dominic Canzone","JP Crawford","Victor Robles","Ben Williamson","Brendan Donovan","Cole Young","Colt Emerson"],"St. Louis Cardinals":["Lars Nootbaar","Masyn Winn","Alec Burleson","Ivan Herrera","Nolan Gorman","Thomas Saggese","Pedro Pages","JJ Wetherholt","Richard Fitts","Victor Scott II"],"Tampa Bay Rays":["Chandler Simpson","Yandy Diaz","Jonathan Aranda","Junior Caminero","Cedric Mullins","Carson Williams","Taylor Walls","Victor Caratini","Nick Fortes","Gavin Lux","Dominic Keegan"],"Texas Rangers":["Brandon Nimmo","Wyatt Langford","Corey Seager","Jake Burger","Joc Pederson","Josh Jung","Josh Smith","Danny Jansen","Evan Carter","Kyle Higashioka"],"Toronto Blue Jays":["George Springer","Addison Barger","Vladimir Guerrero Jr.","Alejandro Kirk","Daulton Varsho","Nathan Lukes","Kazuma Okamoto","Ernie Clement","Andres Gimenez","Anthony Santander"],"Washington Nationals":["CJ Abrams","Daylen Lile","James Wood","Rhys Hoskins","Luis Garcia Jr.","Brady House","Keibert Ruiz","Dylan Crews","Jacob Young","Jose Tena"]};
+
+let rosterData = null;
 let rosterLoading = false;
 let rosterError = "";
 let rosterVerified = false;
 let removedPairCount = 0;
 
-async function loadRosters() {
+function checkRostersStatic() {
   rosterLoading = true;
   render();
   
-  try {
-    // Step 1: Get team list
-    const teamsResp = await fetch("/api/mlb/teams");
-    if(!teamsResp.ok) throw new Error("Failed to fetch teams: " + teamsResp.status);
-    const teamsData = await teamsResp.json();
-    
-    const teams = (teamsData.teams || []).filter(t => t.sport && t.sport.id === 1);
-    console.log(`Found ${teams.length} MLB teams`);
-    
-    rosterData = {};
-    
-    // Step 2: Fetch 40-man roster for each team
-    // Do in parallel batches of 6 to not hammer the API
-    const batchSize = 6;
-    for(let i = 0; i < teams.length; i += batchSize) {
-      const batch = teams.slice(i, i + batchSize);
-      const promises = batch.map(async (team) => {
-        try {
-          // Try 40-man first, fall back to active roster
-          let resp = await fetch(`/api/mlb/roster/${team.id}`);
-          if(!resp.ok) resp = await fetch(`/api/mlb/roster/${team.id}?type=active`);
-          if(!resp.ok) return;
-          
-          const data = await resp.json();
-          const players = new Set();
-          for(const entry of (data.roster || [])) {
-            const name = entry.person?.fullName;
-            if(name) players.add(name);
-          }
-          
-          // Map API team name to our data team name
-          const teamName = matchTeamName(team.name);
-          rosterData[teamName] = players;
-          console.log(`${teamName}: ${players.size} players`);
-        } catch(e) {
-          console.log(`Failed roster for ${team.name}:`, e.message);
-        }
-      });
-      await Promise.all(promises);
-    }
-    
-    // Step 3: Filter PAIRS to only include current teammates
-    const originalCount = PAIRS.length;
-    const validPairs = [];
-    
-    for(const pair of PAIRS) {
-      const roster = rosterData[pair.t];
-      if(!roster) {
-        // Can't verify this team, keep the pair but flag it
-        pair._unverified = true;
-        validPairs.push(pair);
-        continue;
-      }
-      
-      // Fuzzy match both players against the roster
-      const p1OnRoster = fuzzyRosterMatch(pair.p1, roster);
-      const p2OnRoster = fuzzyRosterMatch(pair.p2, roster);
-      
-      if(p1OnRoster && p2OnRoster) {
-        pair._verified = true;
-        validPairs.push(pair);
-      }
-      // else: silently remove - they're no longer teammates
-    }
-    
-    removedPairCount = originalCount - validPairs.length;
-    
-    // Replace PAIRS array contents
-    PAIRS.length = 0;
-    PAIRS.push(...validPairs);
-    
-    rosterVerified = true;
-    console.log(`Roster check: kept ${validPairs.length}/${originalCount} pairs (removed ${removedPairCount})`);
-    
-  } catch(e) {
-    rosterError = e.message;
-    console.error("Roster load error:", e);
+  // Build lookup: team -> set of lowercase last names
+  const rosterLookup = {};
+  for(const [team, players] of Object.entries(ROSTERS_2026)) {
+    rosterLookup[team] = new Set(players.map(p => p.toLowerCase().replace(/\./g,'').replace(/'/g,'').trim()));
   }
   
+  // Check each pair
+  const toRemove = new Set();
+  for(let i = 0; i < PAIRS.length; i++) {
+    const p = PAIRS[i];
+    const team = p.t;
+    if(!rosterLookup[team]) continue;
+    
+    const rosterNames = rosterLookup[team];
+    const p1Clean = p.p1.toLowerCase().replace(/\./g,'').replace(/'/g,'').trim();
+    const p2Clean = p.p2.toLowerCase().replace(/\./g,'').replace(/'/g,'').trim();
+    
+    // Match by full name or last name
+    const p1Last = p1Clean.split(' ').pop().replace(/jr|sr|ii|iii/gi,'').trim();
+    const p2Last = p2Clean.split(' ').pop().replace(/jr|sr|ii|iii/gi,'').trim();
+    
+    const p1Match = rosterNames.has(p1Clean) || [...rosterNames].some(rp => {
+      const rpLast = rp.split(' ').pop().replace(/jr|sr|ii|iii/gi,'').trim();
+      return rpLast === p1Last && rpLast.length > 2;
+    });
+    const p2Match = rosterNames.has(p2Clean) || [...rosterNames].some(rp => {
+      const rpLast = rp.split(' ').pop().replace(/jr|sr|ii|iii/gi,'').trim();
+      return rpLast === p2Last && rpLast.length > 2;
+    });
+    
+    if(!p1Match || !p2Match) {
+      toRemove.add(i);
+    }
+  }
+  
+  // Remove stale pairs (reverse order to preserve indices)
+  const removeArr = [...toRemove].sort((a,b) => b - a);
+  for(const idx of removeArr) {
+    PAIRS.splice(idx, 1);
+  }
+  
+  removedPairCount = removeArr.length;
+  rosterVerified = true;
   rosterLoading = false;
+  
+  // Update header pair count
+  const pc = document.getElementById("pairCount");
+  if(pc) pc.textContent = PAIRS.length + " PAIRS";
+  
   render();
+  console.log(`Roster check: removed ${removedPairCount} stale pairs, ${PAIRS.length} remaining`);
 }
 
-function fuzzyRosterMatch(corrName, rosterSet) {
-  // Exact match
-  if(rosterSet.has(corrName)) return true;
-  
-  // Try without suffixes
-  const cleanCorr = corrName.replace(/ Jr\.?| III| II| Sr\.?/gi, "").trim();
-  for(const rn of rosterSet) {
-    const cleanRn = rn.replace(/ Jr\.?| III| II| Sr\.?/gi, "").trim();
-    if(cleanCorr.toLowerCase() === cleanRn.toLowerCase()) return true;
-  }
-  
-  // Last name match with first initial
-  const corrParts = corrName.split(" ");
-  if(corrParts.length >= 2) {
-    const corrFirst = corrParts[0].toLowerCase();
-    const corrLast = corrParts[corrParts.length-1].replace(/[.]/g,"").toLowerCase();
-    for(const rn of rosterSet) {
-      const rnParts = rn.split(" ");
-      if(rnParts.length >= 2) {
-        const rnFirst = rnParts[0].toLowerCase();
-        const rnLast = rnParts[rnParts.length-1].replace(/[.]/g,"").toLowerCase();
-        if(corrLast === rnLast && corrFirst[0] === rnFirst[0]) return true;
-      }
-    }
-  }
-  
-  return false;
-}
-
-// Auto-load rosters on page load
-loadRosters();
+// Auto-run roster check on page load
+setTimeout(() => checkRostersStatic(), 100);
 
 </script>
 </body>
