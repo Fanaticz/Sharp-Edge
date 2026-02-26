@@ -1029,22 +1029,24 @@ render = function() {
     app.innerHTML = html + app.innerHTML;
   }
   
-  // Update header status
-  const rc = document.getElementById("rosterStatus");
-  const pc = document.getElementById("pairCount");
-  if(rc) {
-    if(rosterLoading) {
-      rc.style.color = "#f59e0b";
-      rc.textContent = "⏳ CHECKING ROSTERS...";
-    } else if(rosterVerified) {
-      rc.style.color = "#22c55e";
-      rc.textContent = `✓ VERIFIED · ${removedPairCount} stale pairs removed`;
-    } else if(rosterError) {
-      rc.style.color = "#ef4444";
-      rc.textContent = "✗ ROSTER CHECK FAILED";
+  // Update header status (guard against vars not yet declared)
+  if(typeof rosterVerified !== 'undefined') {
+    const rc = document.getElementById("rosterStatus");
+    const pc = document.getElementById("pairCount");
+    if(rc) {
+      if(rosterLoading) {
+        rc.style.color = "#f59e0b";
+        rc.textContent = "⏳ CHECKING ROSTERS...";
+      } else if(rosterVerified) {
+        rc.style.color = "#22c55e";
+        rc.textContent = `✓ VERIFIED · ${removedPairCount} stale pairs removed`;
+      } else if(rosterError) {
+        rc.style.color = "#ef4444";
+        rc.textContent = "✗ ROSTER CHECK FAILED";
+      }
     }
+    if(pc) pc.textContent = PAIRS.length.toLocaleString();
   }
-  if(pc) pc.textContent = PAIRS.length.toLocaleString();
 };
 
 // Initial render
@@ -1054,7 +1056,7 @@ render();
 // ROSTER VERIFICATION - Static FanGraphs Depth Chart Rosters (Feb 2026)
 // ═══════════════════════════════════════════════════════════════
 
-const ROSTERS_2026 = {"Arizona Diamondbacks":["Geraldo Perdomo","Ketel Marte","Corbin Carroll","Nolan Arenado","Pavin Smith","Gabriel Moreno","Alek Thomas","Jordan Lawlar","Lourdes Gurriel Jr.","Blaze Alexander","Tyler Locklear"],"Athletics":["Jeff McNeil","Jacob Wilson","Nick Kurtz","Brent Rooker","Tyler Soderstrom","Shea Langeliers","Lawrence Butler","Denzel Clarke","Zack Gelof","Luis Rengifo","Seth Brown"],"Atlanta Braves":["Jurickson Profar","Matt Olson","Ronald Acuna Jr.","Drake Baldwin","Austin Riley","Michael Harris II","Ozzie Albies","Mike Yastrzemski","Mauricio Dubon","Jorge Mateo","Sean Murphy"],"Baltimore Orioles":["Jackson Holliday","Jordan Westburg","Gunnar Henderson","Pete Alonso","Adley Rutschman","Taylor Ward","Colton Cowser","Tyler O'Neill","Samuel Basallo","Dylan Beavers","Heston Kjerstad","Ryan Mountcastle"],"Boston Red Sox":["Roman Anthony","Trevor Story","Jarren Duran","Willson Contreras","Wilyer Abreu","Carlos Narvaez","Marcelo Mayer","Romy Gonzalez","Ceddanne Rafaela","Isiah Kiner-Falefa"],"Chicago Cubs":["Michael Busch","Alex Bregman","Ian Happ","Seiya Suzuki","Pete Crow-Armstrong","Nico Hoerner","Carson Kelly","Moises Ballesteros","Dansby Swanson","Matt Shaw","Shota Imanaga"],"Chicago White Sox":["Chase Meidroth","Kyle Teel","Colson Montgomery","Miguel Vargas","Munetaka Murakami","Lenyn Sosa","Andrew Benintendi","Luisangel Acuna","Everson Pereira","Brooks Baldwin"],"Cincinnati Reds":["TJ Friedl","Noelvi Marte","Elly De La Cruz","Spencer Steer","Eugenio Suarez","Tyler Stephenson","JJ Bleday","Ke'Bryan Hayes","Matt McLain","Sal Stewart","Dane Myers"],"Cleveland Guardians":["Steven Kwan","George Valera","Jose Ramirez","Kyle Manzardo","Chase DeLauter","Travis Bazzana","CJ Kayfus","Bo Naylor","Gabriel Arias","Daniel Schneemann"],"Colorado Rockies":["Ezequiel Tovar","Mickey Moniak","Hunter Goodman","Jordan Beck","Edouard Julien","Brenton Doyle","Willi Castro","Ryan Ritter","Jake McCarthy","Adael Amador"],"Detroit Tigers":["Colt Keith","Gleyber Torres","Kerry Carpenter","Riley Greene","Spencer Torkelson","Wenceel Perez","Dillon Dingler","Kevin McGonigle","Parker Meadows","Javier Baez"],"Houston Astros":["Jeremy Pena","Yordan Alvarez","Jose Altuve","Carlos Correa","Isaac Paredes","Christian Walker","Yainer Diaz","Cam Smith","Jake Meyers","Jesus Sanchez","Zach Cole"],"Kansas City Royals":["Maikel Garcia","Bobby Witt Jr.","Vinnie Pasquantino","Salvador Perez","Jac Caglianone","Jonathan India","Carter Jensen","Isaac Collins","Kyle Isbel","Lane Thomas","Drew Waters"],"Los Angeles Angels":["Zach Neto","Nolan Schanuel","Mike Trout","Jorge Soler","Josh Lowe","Jo Adell","Yoan Moncada","Logan O'Hoppe","Christian Moore","Vaughn Grissom"],"Los Angeles Dodgers":["Shohei Ohtani","Mookie Betts","Freddie Freeman","Will Smith","Kyle Tucker","Teoscar Hernandez","Max Muncy","Andy Pages","Miguel Rojas","Hyeseong Kim","Tommy Edman"],"Miami Marlins":["Xavier Edwards","Jakob Marsee","Kyle Stowers","Agustin Ramirez","Owen Caissie","Otto Lopez","Nathaniel Lowe","Joe Mack","Connor Norby","Christopher Morel"],"Milwaukee Brewers":["Jackson Chourio","Brice Turang","William Contreras","Christian Yelich","Andrew Vaughn","Sal Frelick","Caleb Durbin","Garrett Mitchell","Joey Ortiz","Blake Perkins","Jake Bauers"],"Minnesota Twins":["Byron Buxton","Luke Keaschall","Josh Bell","Matt Wallner","Royce Lewis","Trevor Larnach","Marcell Ozuna","Ryan Jeffers","Brooks Lee","James Outman","Austin Martin"],"New York Mets":["Francisco Lindor","Juan Soto","Bo Bichette","Jorge Polanco","Marcus Semien","Brett Baty","Luis Robert Jr.","Mark Vientos","Francisco Alvarez","Carson Benge","Tyrone Taylor"],"New York Yankees":["Trent Grisham","Aaron Judge","Cody Bellinger","Giancarlo Stanton","Jazz Chisholm Jr.","Ben Rice","Ryan McMahon","Jose Caballero","Austin Wells","Paul Goldschmidt","Oswaldo Cabrera"],"Philadelphia Phillies":["Kyle Schwarber","Trea Turner","Bryce Harper","Alec Bohm","Brandon Marsh","Adolis Garcia","Bryson Stott","JT Realmuto","Justin Crawford","Johan Rojas"],"Pittsburgh Pirates":["Spencer Horwitz","Brandon Lowe","Bryan Reynolds","Ryan O'Hearn","Nick Gonzales","Oneil Cruz","Joey Bart","Jake Mangum","Jared Triolo","Konnor Griffin","Andrew McCutchen"],"San Diego Padres":["Fernando Tatis Jr.","Jackson Merrill","Manny Machado","Gavin Sheets","Ramon Laureano","Xander Bogaerts","Miguel Andujar","Jake Cronenworth","Freddy Fermin","Nick Castellanos"],"San Francisco Giants":["Heliot Ramos","Rafael Devers","Willy Adames","Matt Chapman","Bryce Eldridge","Harrison Bader","Jung Hoo Lee","Casey Schmitt","Patrick Bailey","Luis Arraez","Tyler Fitzgerald"],"Seattle Mariners":["Julio Rodriguez","Cal Raleigh","Josh Naylor","Randy Arozarena","Dominic Canzone","JP Crawford","Victor Robles","Ben Williamson","Brendan Donovan","Cole Young","Colt Emerson"],"St. Louis Cardinals":["Lars Nootbaar","Masyn Winn","Alec Burleson","Ivan Herrera","Nolan Gorman","Thomas Saggese","Pedro Pages","JJ Wetherholt","Richard Fitts","Victor Scott II"],"Tampa Bay Rays":["Chandler Simpson","Yandy Diaz","Jonathan Aranda","Junior Caminero","Cedric Mullins","Carson Williams","Taylor Walls","Victor Caratini","Nick Fortes","Gavin Lux","Dominic Keegan"],"Texas Rangers":["Brandon Nimmo","Wyatt Langford","Corey Seager","Jake Burger","Joc Pederson","Josh Jung","Josh Smith","Danny Jansen","Evan Carter","Kyle Higashioka"],"Toronto Blue Jays":["George Springer","Addison Barger","Vladimir Guerrero Jr.","Alejandro Kirk","Daulton Varsho","Nathan Lukes","Kazuma Okamoto","Ernie Clement","Andres Gimenez","Anthony Santander"],"Washington Nationals":["CJ Abrams","Daylen Lile","James Wood","Rhys Hoskins","Luis Garcia Jr.","Brady House","Keibert Ruiz","Dylan Crews","Jacob Young","Jose Tena"]};
+const ROSTERS_2026 = {"Arizona Diamondbacks":["Geraldo Perdomo","Ketel Marte","Corbin Carroll","Nolan Arenado","Pavin Smith","Gabriel Moreno","Alek Thomas","Jordan Lawlar","Lourdes Gurriel Jr.","Blaze Alexander","Tyler Locklear"],"Athletics":["Jeff McNeil","Jacob Wilson","Nick Kurtz","Brent Rooker","Tyler Soderstrom","Shea Langeliers","Lawrence Butler","Denzel Clarke","Zack Gelof","Luis Rengifo","Daz Cameron"],"Atlanta Braves":["Jurickson Profar","Matt Olson","Ronald Acuna Jr.","Drake Baldwin","Austin Riley","Michael Harris II","Ozzie Albies","Mike Yastrzemski","Mauricio Dubon","Jorge Mateo","Sean Murphy"],"Baltimore Orioles":["Jackson Holliday","Jordan Westburg","Gunnar Henderson","Pete Alonso","Adley Rutschman","Taylor Ward","Colton Cowser","Tyler O'Neill","Samuel Basallo","Dylan Beavers","Heston Kjerstad","Ryan Mountcastle"],"Boston Red Sox":["Roman Anthony","Trevor Story","Jarren Duran","Willson Contreras","Wilyer Abreu","Carlos Narvaez","Marcelo Mayer","Romy Gonzalez","Ceddanne Rafaela","Isiah Kiner-Falefa"],"Chicago Cubs":["Michael Busch","Alex Bregman","Ian Happ","Seiya Suzuki","Pete Crow-Armstrong","Nico Hoerner","Carson Kelly","Moises Ballesteros","Dansby Swanson","Matt Shaw","Shota Imanaga"],"Chicago White Sox":["Chase Meidroth","Kyle Teel","Colson Montgomery","Miguel Vargas","Munetaka Murakami","Lenyn Sosa","Andrew Benintendi","Luisangel Acuna","Everson Pereira","Brooks Baldwin"],"Cincinnati Reds":["TJ Friedl","Noelvi Marte","Elly De La Cruz","Spencer Steer","Eugenio Suarez","Tyler Stephenson","JJ Bleday","Ke'Bryan Hayes","Matt McLain","Sal Stewart","Dane Myers"],"Cleveland Guardians":["Steven Kwan","George Valera","Jose Ramirez","Kyle Manzardo","Chase DeLauter","Travis Bazzana","CJ Kayfus","Bo Naylor","Gabriel Arias","Daniel Schneemann"],"Colorado Rockies":["Ezequiel Tovar","Mickey Moniak","Hunter Goodman","Jordan Beck","Edouard Julien","Brenton Doyle","Willi Castro","Ryan Ritter","Jake McCarthy","Adael Amador"],"Detroit Tigers":["Colt Keith","Gleyber Torres","Kerry Carpenter","Riley Greene","Spencer Torkelson","Wenceel Perez","Dillon Dingler","Kevin McGonigle","Parker Meadows","Javier Baez"],"Houston Astros":["Jeremy Pena","Yordan Alvarez","Jose Altuve","Carlos Correa","Isaac Paredes","Christian Walker","Yainer Diaz","Cam Smith","Jake Meyers","Jesus Sanchez","Zach Cole"],"Kansas City Royals":["Maikel Garcia","Bobby Witt Jr.","Vinnie Pasquantino","Salvador Perez","Jac Caglianone","Jonathan India","Carter Jensen","Isaac Collins","Kyle Isbel","Lane Thomas","Drew Waters"],"Los Angeles Angels":["Zach Neto","Nolan Schanuel","Mike Trout","Jorge Soler","Josh Lowe","Jo Adell","Yoan Moncada","Logan O'Hoppe","Christian Moore","Vaughn Grissom"],"Los Angeles Dodgers":["Shohei Ohtani","Mookie Betts","Freddie Freeman","Will Smith","Kyle Tucker","Teoscar Hernandez","Max Muncy","Andy Pages","Miguel Rojas","Hyeseong Kim","Tommy Edman"],"Miami Marlins":["Xavier Edwards","Jakob Marsee","Kyle Stowers","Agustin Ramirez","Owen Caissie","Otto Lopez","Nathaniel Lowe","Joe Mack","Connor Norby","Christopher Morel"],"Milwaukee Brewers":["Jackson Chourio","Brice Turang","William Contreras","Christian Yelich","Andrew Vaughn","Sal Frelick","Caleb Durbin","Garrett Mitchell","Joey Ortiz","Blake Perkins","Jake Bauers"],"Minnesota Twins":["Byron Buxton","Luke Keaschall","Josh Bell","Matt Wallner","Royce Lewis","Trevor Larnach","Marcell Ozuna","Ryan Jeffers","Brooks Lee","James Outman","Austin Martin"],"New York Mets":["Francisco Lindor","Juan Soto","Bo Bichette","Jorge Polanco","Marcus Semien","Brett Baty","Luis Robert Jr.","Mark Vientos","Francisco Alvarez","Carson Benge","Tyrone Taylor"],"New York Yankees":["Trent Grisham","Aaron Judge","Cody Bellinger","Giancarlo Stanton","Jazz Chisholm Jr.","Ben Rice","Ryan McMahon","Jose Caballero","Austin Wells","Paul Goldschmidt","Oswaldo Cabrera"],"Philadelphia Phillies":["Kyle Schwarber","Trea Turner","Bryce Harper","Alec Bohm","Brandon Marsh","Adolis Garcia","Bryson Stott","JT Realmuto","Justin Crawford","Johan Rojas"],"Pittsburgh Pirates":["Spencer Horwitz","Brandon Lowe","Bryan Reynolds","Ryan O'Hearn","Nick Gonzales","Oneil Cruz","Joey Bart","Jake Mangum","Jared Triolo","Konnor Griffin","Andrew McCutchen"],"San Diego Padres":["Fernando Tatis Jr.","Jackson Merrill","Manny Machado","Gavin Sheets","Ramon Laureano","Xander Bogaerts","Miguel Andujar","Jake Cronenworth","Freddy Fermin","Nick Castellanos"],"San Francisco Giants":["Heliot Ramos","Rafael Devers","Willy Adames","Matt Chapman","Bryce Eldridge","Harrison Bader","Jung Hoo Lee","Casey Schmitt","Patrick Bailey","Luis Arraez","Tyler Fitzgerald"],"Seattle Mariners":["Julio Rodriguez","Cal Raleigh","Josh Naylor","Randy Arozarena","Dominic Canzone","JP Crawford","Victor Robles","Ben Williamson","Brendan Donovan","Cole Young","Colt Emerson"],"St. Louis Cardinals":["Lars Nootbaar","Masyn Winn","Alec Burleson","Ivan Herrera","Nolan Gorman","Thomas Saggese","Pedro Pages","JJ Wetherholt","Richard Fitts","Victor Scott II"],"Tampa Bay Rays":["Chandler Simpson","Yandy Diaz","Jonathan Aranda","Junior Caminero","Cedric Mullins","Carson Williams","Taylor Walls","Victor Caratini","Nick Fortes","Gavin Lux","Dominic Keegan"],"Texas Rangers":["Brandon Nimmo","Wyatt Langford","Corey Seager","Jake Burger","Joc Pederson","Josh Jung","Josh Smith","Danny Jansen","Evan Carter","Kyle Higashioka"],"Toronto Blue Jays":["George Springer","Addison Barger","Vladimir Guerrero Jr.","Alejandro Kirk","Daulton Varsho","Nathan Lukes","Kazuma Okamoto","Ernie Clement","Andres Gimenez","Anthony Santander"],"Washington Nationals":["CJ Abrams","Daylen Lile","James Wood","Rhys Hoskins","Luis Garcia Jr.","Brady House","Keibert Ruiz","Dylan Crews","Jacob Young","Jose Tena"]};
 
 let rosterData = null;
 let rosterLoading = false;
@@ -1111,11 +1113,28 @@ function checkRostersStatic() {
   rosterVerified = true;
   rosterLoading = false;
   
-  // Update header pair count
+  // Direct DOM update (render() may rebuild innerHTML and lose this)
+  const rc = document.getElementById("rosterStatus");
+  if(rc) {
+    rc.style.color = "#22c55e";
+    rc.textContent = `✓ VERIFIED · ${removedPairCount} stale pairs removed`;
+  }
   const pc = document.getElementById("pairCount");
   if(pc) pc.textContent = PAIRS.length + " PAIRS";
   
   render();
+  
+  // Re-apply after render (in case render rebuilt the header)
+  requestAnimationFrame(() => {
+    const rc2 = document.getElementById("rosterStatus");
+    if(rc2) {
+      rc2.style.color = "#22c55e";
+      rc2.textContent = `✓ VERIFIED · ${removedPairCount} stale pairs removed`;
+    }
+    const pc2 = document.getElementById("pairCount");
+    if(pc2) pc2.textContent = PAIRS.length + " PAIRS";
+  });
+  
   console.log(`Roster check: removed ${removedPairCount} stale pairs, ${PAIRS.length} remaining`);
 }
 
