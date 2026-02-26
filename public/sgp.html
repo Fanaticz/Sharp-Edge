@@ -12,6 +12,7 @@ body{background:var(--bg);color:var(--t);font-family:var(--f);min-height:100vh}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#1e293b;border-radius:3px}
 input,select,textarea{outline:none}
 @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .fi{animation:fi .2s ease forwards}
 .rh:hover{background:rgba(255,255,255,.03)!important}
 .inp{padding:7px 10px;border-radius:6px;background:var(--s);border:1px solid var(--bd);color:var(--t);font-size:12px;font-family:var(--m);width:100%}.inp:focus{border-color:rgba(34,197,94,.4)}
@@ -24,6 +25,9 @@ input,select,textarea{outline:none}
 table{width:100%;border-collapse:collapse}
 th{padding:6px 4px;text-align:center;color:var(--t3);font-size:9px;font-family:var(--m);font-weight:700}
 td{padding:5px 4px;text-align:center;font-size:10px;font-family:var(--m)}
+.drop-zone{border:2px dashed rgba(34,197,94,.3);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.drop-zone:hover,.drop-zone.over{border-color:#22c55e;background:rgba(34,197,94,.04)}
+.spinner{width:20px;height:20px;border:2px solid var(--bd);border-top-color:#22c55e;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
 </style>
 </head>
 <body>
@@ -36,33 +40,21 @@ const TA={Atlanta:"ATL",Boston:"BOS",Brooklyn:"BKN",Charlotte:"CHA",Chicago:"CHI
 const TC={ATL:"#e03a3e",BOS:"#007a33",BKN:"#888",CHA:"#1d8cab",CHI:"#ce1141",CLE:"#860038",DAL:"#0053bc",DEN:"#1d428a",DET:"#c8102e",GSW:"#ffc72c",HOU:"#ce1141",IND:"#002d62",LAC:"#c8102e",LAL:"#552583",MEM:"#5d76a9",MIA:"#98002e",MIL:"#00471b",MIN:"#0c2340",NOP:"#0c2340",NYK:"#f58426",OKC:"#007ac1",ORL:"#0077c0",PHI:"#006bb6",PHX:"#1d1160",POR:"#e03a3e",SAC:"#5a2d81",SAS:"#c4ced4",TOR:"#ce1141",UTA:"#002b5c",WAS:"#002b5c"};
 const TEAMS=Object.keys(TA).sort();
 const PO=[];for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++)PO.push({k:`${S[i]}_${S[j]}`,l:`${S[i]}/${S[j]}`});
-const MM={"Player Points":"PTS","Player Rebounds":"REB","Player Assists":"AST","Player Threes":"TPM","Player Steals":"STL","Player Blocks":"BLK"};
+const MM={"Player Points":"PTS","Player Rebounds":"REB","Player Assists":"AST","Player Threes":"TPM","Player Steals":"STL","Player Blocks":"BLK","Points":"PTS","Rebounds":"REB","Assists":"AST","Threes":"TPM","Steals":"STL","Blocks":"BLK"};
 const MREV={PTS:"player points",REB:"player rebounds",AST:"player assists",TPM:"player threes",STL:"player steals",BLK:"player blocks"};
 
 function gc(p,s1,s2){if(s1===s2)return 1;const[a,b]=S.indexOf(s1)<S.indexOf(s2)?[s1,s2]:[s2,s1];return p[9+PI[`${a}_${b}`]]||0;}
 function ccl(v){const a=Math.abs(v);if(a>=.5)return v>0?"#22c55e":"#ef4444";if(a>=.3)return v>0?"#4ade80":"#f87171";return"#64748b";}
 function cbg(v){const a=Math.abs(v);if(a>=.5)return v>0?"rgba(34,197,94,.12)":"rgba(239,68,68,.12)";if(a>=.3)return v>0?"rgba(74,222,128,.06)":"rgba(248,113,113,.06)";return"transparent";}
 function sl(v){const a=Math.abs(v);if(a>=.7)return"V.STRONG";if(a>=.5)return"STRONG";if(a>=.3)return"MOD";if(a>=.15)return"WEAK";return"—";}
-function badge(v){const l=sl(v);const c={"V.STRONG":"#22c55e",STRONG:"#4ade80",MOD:"#fbbf24",WEAK:"#94a3b8","—":"#475569"}[l];return`<span class="badge" style="background:${c}22;color:${c}">${l}</span>`;}
+function bdg(v){const l=sl(v);const c={"V.STRONG":"#22c55e",STRONG:"#4ade80",MOD:"#fbbf24",WEAK:"#94a3b8","—":"#475569"}[l];return`<span class="badge" style="background:${c}22;color:${c}">${l}</span>`;}
 function a2p(o){return o>0?100/(o+100):Math.abs(o)/(Math.abs(o)+100);}
 function p2a(p){if(p<=0||p>=1)return 0;return p>=.5?Math.round(-p/(1-p)*100):Math.round((1-p)/p*100);}
 function fA(o){return o>=0?`+${o}`:`${o}`;}
 function a2d(o){return o>0?o/100+1:100/Math.abs(o)+1;}
 function findPD(n){const s=n.toLowerCase().trim();return D.find(p=>p[0].toLowerCase()===s)||D.find(p=>p[0].toLowerCase().includes(s));}
-
-function parseFV(text){
-  const lines=text.trim().split('\n'),res=[];
-  for(const line of lines){
-    const p=line.split('\t');if(p.length<14)continue;
-    const market=p[4]?.trim(),betName=p[5]?.trim(),book=p[6]?.trim(),oddsRaw=p[9]?.trim(),avgFvRaw=p[13]?.trim();
-    if(!market||!betName)continue;const stat=MM[market];if(!stat)continue;
-    const nm=betName.match(/^(.+?)\s+(Over|Under)\s+([\d.]+)/i);if(!nm)continue;
-    const bm=oddsRaw?.match(/([+-]?\d+)/),fm=avgFvRaw?.match(/([+-]?\d+)/);
-    if(!bm||!fm)continue;
-    res.push({playerName:nm[1].trim(),stat,dir:nm[2],ln:parseFloat(nm[3]),bookOdds:parseInt(bm[1]),fairOdds:parseInt(fm[1]),market,betName,book,label:`${stat} ${nm[2]} ${nm[3]}`});
-  }
-  return res;
-}
+function escH(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function escA(s){return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 
 function buildCombos(lines){
   const byP={};for(const l of lines){if(!byP[l.playerName])byP[l.playerName]=[];byP[l.playerName].push(l);}
@@ -81,9 +73,72 @@ function buildCombos(lines){
   combos.sort((a,b)=>a.fvC-b.fvC);return{combos,singles};
 }
 
+// ─── IMAGE → DATA via Claude API ───
+async function parseImage(base64,mediaType){
+  loading=true;loadErr="";render();
+  try{
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:4000,
+        messages:[{role:"user",content:[
+          {type:"image",source:{type:"base64",media_type:mediaType,data:base64}},
+          {type:"text",text:`Extract every row from this betting odds table as JSON. Return ONLY a JSON array, no markdown, no backticks. Each element should be: {"playerName":"Full Name","market":"Player Points or Player Rebounds or Player Assists or Player Threes or Player Steals or Player Blocks","direction":"Over or Under","line":number,"bookOdds":number (American format like +115 or -130),"fairOdds":number (from avg_fv column, American format),"book":"book name","ev":number}. Parse the bet_name column to extract playerName, direction, and line (e.g. "Gui Santos Over 16.5" → playerName:"Gui Santos", direction:"Over", line:16.5). The odds column has format like "+115 / nan" — take the first number as bookOdds. The avg_fv column has the fair value odds. Include ALL rows visible.`}
+        ]}]
+      })
+    });
+    const data=await resp.json();
+    const text=data.content?.filter(b=>b.type==="text").map(b=>b.text).join("")||"";
+    const clean=text.replace(/```json|```/g,"").trim();
+    const rows=JSON.parse(clean);
+
+    // Map to our format
+    const lines=rows.filter(r=>r.playerName&&r.market).map(r=>{
+      const stat=MM[r.market]||MM[r.market?.replace("Player ","")]||null;
+      if(!stat)return null;
+      return{playerName:r.playerName,stat,dir:r.direction||"Over",ln:r.line||0,
+        bookOdds:r.bookOdds||0,fairOdds:r.fairOdds||0,market:r.market,
+        betName:`${r.playerName} ${r.direction} ${r.line}`,book:r.book||"",
+        label:`${stat} ${r.direction||"O"} ${r.line}`,ev:r.ev||0};
+    }).filter(Boolean);
+
+    if(lines.length>0){
+      parsed={lines,...buildCombos(lines)};sgpOdds={};vultureCalc={};
+    } else {loadErr="No lines parsed from image. Try a clearer screenshot.";}
+  }catch(e){loadErr="Error reading image: "+e.message;parsed=null;}
+  loading=false;render();
+}
+
 // ─── STATE ───
-let tab="scan",raw="",parsed=null,sgpOdds={},expandedC=null,vultureCalc={},copied="",searchP="";
-let search2="",teamF="ALL",pairF="PTS_REB",minG=20,selP=null,hovCell=null;
+let tab="scan",parsed=null,sgpOdds={},expandedC=null,vultureCalc={},copied="",searchP="";
+let search2="",teamF="ALL",pairF="PTS_REB",minG=20,selP=null;
+let loading=false,loadErr="",imgPreview=null;
+
+// ─── FILE HANDLING ───
+function handleFile(file){
+  if(!file||!file.type.startsWith("image/"))return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const full=e.target.result;
+    imgPreview=full;
+    const base64=full.split(",")[1];
+    const mediaType=file.type;
+    parseImage(base64,mediaType);
+  };
+  reader.readAsDataURL(file);
+}
+
+function handlePaste(e){
+  const items=e.clipboardData?.items;
+  if(!items)return;
+  for(const item of items){
+    if(item.type.startsWith("image/")){
+      e.preventDefault();
+      handleFile(item.getAsFile());
+      return;
+    }
+  }
+}
 
 function render(){
   const app=document.getElementById("app");
@@ -101,51 +156,57 @@ function render(){
       </div>
     </div>
   </div>
-  <div style="max-width:1200px;margin:0 auto;padding:16px 20px">
-    ${tab==="scan"?renderScan():renderCorr()}
-  </div>`;
+  <div style="max-width:1200px;margin:0 auto;padding:16px 20px">${tab==="scan"?renderScan():renderCorr()}</div>`;
   attachEvents();
 }
 
 function renderScan(){
+  // Upload area
   let h=`<div class="cd">
-    <h3 style="font-size:10px;font-family:var(--m);color:var(--t3);letter-spacing:2px;margin-bottom:8px">📋 PASTE FAIR VALUE SHEET</h3>
-    <textarea class="inp" id="fvInput" placeholder="Paste fair value rows (tab-separated)..." style="height:${raw?'70':'110'}px;resize:vertical;font-size:11px;margin-bottom:6px">${escHtml(raw)}</textarea>`;
-  if(parsed){
-    h+=`<div style="display:flex;gap:12px;font-size:11px;font-family:var(--m)">
-      <span style="color:var(--g)">✓ ${parsed.lines.length} lines</span>
+    <h3 style="font-size:10px;font-family:var(--m);color:var(--t3);letter-spacing:2px;margin-bottom:8px">📸 UPLOAD FAIR VALUE SCREENSHOT</h3>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="image/*" style="display:none"/>
+      ${loading?`<div><div class="spinner"></div><div style="margin-top:10px;font-size:12px;color:var(--g);font-family:var(--m)">Reading image with AI...</div></div>`
+      :imgPreview?`<img src="${imgPreview}" style="max-width:100%;max-height:200px;border-radius:8px;margin-bottom:8px"/><br><span style="font-size:11px;color:var(--t2)">Click or drop to replace</span>`
+      :`<div style="font-size:32px;margin-bottom:8px">📋</div>
+        <div style="font-size:13px;font-weight:600;color:var(--t2)">Drop screenshot here, click to upload, or Ctrl+V to paste</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">Supports the fair value table from your Discord bot</div>`}
+    </div>
+    ${loadErr?`<div style="margin-top:8px;padding:8px 12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px;font-size:11px;color:#ef4444;font-family:var(--m)">⚠️ ${escH(loadErr)}</div>`:""}
+    ${parsed?`<div style="margin-top:8px;display:flex;gap:12px;font-size:11px;font-family:var(--m)">
+      <span style="color:var(--g)">✓ ${parsed.lines.length} lines read</span>
       <span style="color:var(--t2)">${parsed.combos.length} SGP combos</span>
-      <span style="color:#fbbf24">${parsed.singles.length} need Vulture</span></div>`;
-  }
-  h+=`</div>`;
+      <span style="color:#fbbf24">${parsed.singles.length} need Vulture</span>
+    </div>`:""}
+  </div>`;
+
+  // Also allow text paste as fallback
+  h+=`<details style="margin-bottom:10px"><summary style="font-size:10px;color:var(--t3);font-family:var(--m);cursor:pointer;padding:4px 0">Or paste text data (tab-separated)...</summary>
+    <textarea class="inp" id="fvText" placeholder="Paste tab-separated data..." style="height:70px;resize:vertical;font-size:11px;margin-top:6px"></textarea></details>`;
 
   if(parsed){
-    h+=`<input class="inp" id="searchP" value="${escHtml(searchP)}" placeholder="Filter by player..." style="width:200px;margin-bottom:12px"/>`;
+    h+=`<input class="inp" id="searchP" value="${escH(searchP)}" placeholder="Filter by player..." style="width:200px;margin-bottom:12px"/>`;
     const fc=parsed.combos.filter(c=>!searchP||c.name.toLowerCase().includes(searchP.toLowerCase()));
 
     if(fc.length>0){
       h+=`<h3 style="font-size:10px;font-family:var(--m);color:var(--t3);letter-spacing:2px;margin-bottom:8px">🎯 SGP COMBOS — ENTER BOOK SGP ODDS FOR EV%</h3>`;
       fc.forEach((c,ci)=>{
         const odds=sgpOdds[ci]||"";
-        let evStr="—",qkStr="—",evColor="var(--t3)",evIcon="",bgStyle="var(--s)",bdStyle="var(--bd)";
-        if(odds){
-          const o=parseInt(odds);if(!isNaN(o)){
-            const dec=a2d(o),ev=(c.pC*dec-1)*100,kf=(c.pC*dec-1)/(dec-1),qk=Math.max(0,kf*.25);
-            evStr=`${ev>0?"+":""}${ev.toFixed(1)}%`;qkStr=`${(qk*100).toFixed(2)}%`;
-            evColor=ev>0?"#22c55e":"#ef4444";evIcon=ev>5?"🔥":ev>0?"✓":"✗";
-            if(ev>0){bdStyle="rgba(34,197,94,.25)";} if(ev>5){bgStyle="rgba(34,197,94,.03)";}
-          }
-        }
-        const ab=c.pd?TA[c.pd[1]]:"";const tc=ab?TC[ab]||"var(--t3)":"var(--t3)";
-        const exp=expandedC===ci;
-
-        h+=`<div class="cd" style="border:1px solid ${bdStyle};background:${bgStyle}">
+        let evStr="—",qkStr="—",evColor="var(--t3)",evIcon="",bgS="var(--s)",bdS="var(--bd)";
+        if(odds){const o=parseInt(odds);if(!isNaN(o)){
+          const dec=a2d(o),ev=(c.pC*dec-1)*100,kf=(c.pC*dec-1)/(dec-1),qk=Math.max(0,kf*.25);
+          evStr=`${ev>0?"+":""}${ev.toFixed(1)}%`;qkStr=`${(qk*100).toFixed(2)}%`;
+          evColor=ev>0?"#22c55e":"#ef4444";evIcon=ev>5?"🔥":ev>0?"✓":"✗";
+          if(ev>0)bdS="rgba(34,197,94,.25)";if(ev>5)bgS="rgba(34,197,94,.03)";
+        }}
+        const ab=c.pd?TA[c.pd[1]]:"";const tc=ab?TC[ab]||"#666":"#666";const exp=expandedC===ci;
+        h+=`<div class="cd" style="border:1px solid ${bdS};background:${bgS}">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <div style="flex:1;min-width:200px">
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:14px;font-weight:700">${c.name}</span>
                 ${ab?`<span style="font-size:9px;font-family:var(--m);font-weight:600;color:${tc};padding:1px 5px;border-radius:4px;background:${tc}18">${ab}</span>`:""}
-                ${badge(c.r)}
+                ${bdg(c.r)}
               </div>
               <div style="font-size:11px;color:var(--t2);font-family:var(--m);margin-top:2px">${c.label}</div>
             </div>
@@ -155,7 +216,7 @@ function renderScan(){
               <div style="font-size:15px;font-weight:800;font-family:var(--m);color:#22c55e">${fA(c.fvC)}</div>
               <div style="font-size:9px;color:var(--t3);font-family:var(--m)">${(c.pC*100).toFixed(1)}%</div></div>
             <div style="min-width:85px"><div style="font-size:8px;color:var(--t3);font-family:var(--m);margin-bottom:2px">BOOK SGP ODDS</div>
-              <input class="inp sgp-odds" data-ci="${ci}" value="${escHtml(odds)}" placeholder="+250" style="width:85px;text-align:center;font-size:13px;font-weight:700;padding:5px 6px"/></div>
+              <input class="inp sgp-odds" data-ci="${ci}" value="${escH(odds)}" placeholder="+250" style="width:85px;text-align:center;font-size:13px;font-weight:700;padding:5px 6px"/></div>
             <div style="text-align:center;min-width:65px"><div style="font-size:8px;color:var(--t3);font-family:var(--m)">EV%</div>
               <div style="font-size:17px;font-weight:800;font-family:var(--m);color:${evColor}">${evStr}</div>
               <div style="font-size:9px;color:var(--t3)">${evIcon}</div></div>
@@ -187,116 +248,80 @@ function renderScan(){
         const sm=best?MREV[best]:"player rebounds";
         const cmd=`/run command_name: twa markets: ${sm} bet_names: ${nm} over books: ${l.book||"fanatics"}`;
         const cmdAll=`/run command_name: twa markets: ${S.filter(x=>x!==l.stat).map(x=>MREV[x]).join(", ")} bet_names: ${nm} over books: ${l.book||"fanatics"}`;
-        const vc=vultureCalc[si]||{};
-        const stat2=vc.stat||best||"REB";
-
-        // Calc if we have data
-        let calcHtml="<span style='font-size:9px;color:var(--t3);font-family:var(--m)'>Enter fair + SGP odds</span>";
-        if(vc.fair){
-          const f2=parseInt(vc.fair);
-          if(!isNaN(f2)){
-            const p1=a2p(l.fairOdds),p2=a2p(f2);let pU=p1*p2,r=0;
-            if(pd)r=gc(pd,l.stat,stat2);
-            let pC=pU+r*Math.sqrt(p1*(1-p1)*p2*(1-p2));pC=Math.max(.001,Math.min(.999,pC));
-            const fvC=p2a(pC);
-            if(vc.sgpOdds){
-              const so=parseInt(vc.sgpOdds);
-              if(!isNaN(so)){
-                const dec=a2d(so),ev=(pC*dec-1)*100,kf=(pC*dec-1)/(dec-1),qk=Math.max(0,kf*.25);
-                calcHtml=`<div style="display:flex;gap:8px;align-items:center">
-                  <div><div style="font-size:7px;color:var(--t3);font-family:var(--m)">FV</div><div style="font-size:13px;font-weight:800;font-family:var(--m);color:#22c55e">${fA(fvC)}</div></div>
-                  <div><div style="font-size:7px;color:var(--t3);font-family:var(--m)">EV</div><div style="font-size:13px;font-weight:800;font-family:var(--m);color:${ev>0?"#22c55e":"#ef4444"}">${ev>0?"+":""}${ev.toFixed(1)}%</div></div>
-                  <div><div style="font-size:7px;color:var(--t3);font-family:var(--m)">QK</div><div style="font-size:11px;font-weight:700;font-family:var(--m);color:${qk>0?"#22c55e":"var(--t3)"}">${(qk*100).toFixed(2)}%</div></div>
-                  ${badge(r)}</div>`;
-              }
-            } else {
-              calcHtml=`<span style="font-size:10px;font-family:var(--m);color:var(--t2)">FV ${fA(fvC)} r=${r.toFixed(2)} — add SGP odds</span>`;
-            }
-          }
-        }
-
+        const vc=vultureCalc[si]||{};const stat2=vc.stat||best||"REB";
+        let calcH="<span style='font-size:9px;color:var(--t3);font-family:var(--m)'>Enter fair + SGP odds</span>";
+        if(vc.fair){const f2=parseInt(vc.fair);if(!isNaN(f2)){
+          const p1=a2p(l.fairOdds),p2=a2p(f2);let pU=p1*p2,r=0;
+          if(pd)r=gc(pd,l.stat,stat2);let pC=pU+r*Math.sqrt(p1*(1-p1)*p2*(1-p2));pC=Math.max(.001,Math.min(.999,pC));const fvC=p2a(pC);
+          if(vc.sgpOdds){const so=parseInt(vc.sgpOdds);if(!isNaN(so)){
+            const dec=a2d(so),ev=(pC*dec-1)*100,kf=(pC*dec-1)/(dec-1),qk=Math.max(0,kf*.25);
+            calcH=`<div style="display:flex;gap:8px;align-items:center">
+              <div><div style="font-size:7px;color:var(--t3);font-family:var(--m)">FV</div><div style="font-size:13px;font-weight:800;font-family:var(--m);color:#22c55e">${fA(fvC)}</div></div>
+              <div><div style="font-size:7px;color:var(--t3);font-family:var(--m)">EV</div><div style="font-size:13px;font-weight:800;font-family:var(--m);color:${ev>0?"#22c55e":"#ef4444"}">${ev>0?"+":""}${ev.toFixed(1)}%</div></div>
+              <div><div style="font-size:7px;color:var(--t3);font-family:var(--m)">QK</div><div style="font-size:11px;font-weight:700;font-family:var(--m);color:${qk>0?"#22c55e":"var(--t3)"}">${(qk*100).toFixed(2)}%</div></div>
+              ${bdg(r)}</div>`;
+          }}else{calcH=`<span style="font-size:10px;font-family:var(--m);color:var(--t2)">FV ${fA(fvC)} r=${r.toFixed(2)} — add SGP odds</span>`;}
+        }}
         h+=`<div class="cd" style="border-left:3px solid #fbbf24">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
             <span style="font-size:14px;font-weight:700">${single.name}</span>
             ${ab?`<span style="font-size:9px;font-family:var(--m);color:${TC[ab]||"var(--t3)"}">${ab}</span>`:""}
             <span style="font-size:11px;color:var(--t2);font-family:var(--m)">${l.label}</span>
-            <span style="font-size:10px;color:var(--t3);font-family:var(--m)">Fair ${fA(l.fairOdds)} / Book ${fA(l.bookOdds)}</span>
-          </div>
+            <span style="font-size:10px;color:var(--t3);font-family:var(--m)">Fair ${fA(l.fairOdds)} / Book ${fA(l.bookOdds)}</span></div>
           ${best?`<div style="font-size:10px;color:var(--t2);font-family:var(--m);margin-bottom:5px">Best pair: <span style="color:#22c55e;font-weight:600">${best}</span> (r=${bestR.toFixed(2)})</div>`:""}
           <div style="display:flex;gap:5px;margin-bottom:8px">
-            <div style="flex:1;position:relative"><div style="padding:6px 8px;background:#0a0a0a;border-radius:5px;font-family:var(--m);font-size:10px;color:#22c55e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:50px">${escHtml(cmd)}</div>
-              <button class="copy-btn" data-text="${escAttr(cmd)}" style="position:absolute;top:3px;right:3px;padding:2px 6px;border-radius:3px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e;font-size:9px;font-family:var(--m);cursor:pointer">Copy</button></div>
-            <button class="copy-btn" data-text="${escAttr(cmdAll)}" class="bs" style="padding:5px 10px;border-radius:5px;background:var(--s2);border:1px solid var(--bd);color:var(--t2);font-size:9px;font-family:var(--m);cursor:pointer;white-space:nowrap">All Mkts</button>
-          </div>
+            <div style="flex:1;position:relative"><div style="padding:6px 8px;background:#0a0a0a;border-radius:5px;font-family:var(--m);font-size:10px;color:#22c55e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:50px">${escH(cmd)}</div>
+              <button class="copy-btn" data-text="${escA(cmd)}" style="position:absolute;top:3px;right:3px;padding:2px 6px;border-radius:3px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#22c55e;font-size:9px;font-family:var(--m);cursor:pointer">Copy</button></div>
+            <button class="copy-btn" data-text="${escA(cmdAll)}" style="padding:5px 10px;border-radius:5px;background:var(--s2);border:1px solid var(--bd);color:var(--t2);font-size:9px;font-family:var(--m);cursor:pointer;white-space:nowrap">All Mkts</button></div>
           <div style="padding:8px 10px;background:var(--s2);border-radius:6px">
             <div style="font-size:9px;color:var(--t3);font-family:var(--m);letter-spacing:1px;margin-bottom:5px">ADD 2ND LEG FROM VULTURE</div>
             <div style="display:grid;grid-template-columns:75px 75px 90px auto;gap:5px;align-items:center">
-              <select class="inp vc-stat" data-si="${si}" style="font-size:10px;padding:5px 3px">
-                ${S.filter(x=>x!==l.stat).map(s=>`<option value="${s}" ${s===stat2?"selected":""}>${s}</option>`).join("")}
-              </select>
-              <input class="inp vc-fair" data-si="${si}" placeholder="Fair" value="${escHtml(vc.fair||"")}" style="font-size:11px;text-align:center"/>
-              <input class="inp vc-sgp" data-si="${si}" placeholder="SGP odds" value="${escHtml(vc.sgpOdds||"")}" style="font-size:11px;text-align:center;font-weight:700"/>
-              ${calcHtml}
-            </div>
-          </div>
-        </div>`;
+              <select class="inp vc-stat" data-si="${si}" style="font-size:10px;padding:5px 3px">${S.filter(x=>x!==l.stat).map(s=>`<option value="${s}" ${s===stat2?"selected":""}>${s}</option>`).join("")}</select>
+              <input class="inp vc-fair" data-si="${si}" placeholder="Fair" value="${escH(vc.fair||"")}" style="font-size:11px;text-align:center"/>
+              <input class="inp vc-sgp" data-si="${si}" placeholder="SGP odds" value="${escH(vc.sgpOdds||"")}" style="font-size:11px;text-align:center;font-weight:700"/>
+              ${calcH}</div></div></div>`;
       });
     }
   }
 
-  if(!parsed){
-    h+=`<div style="text-align:center;padding:50px 20px"><div style="font-size:44px;margin-bottom:10px">⚡</div>
-      <div style="font-size:15px;font-weight:700;color:var(--t2)">Paste your fair value sheet above</div>
-      <div style="font-size:11px;color:var(--t3);margin-top:5px;max-width:460px;margin-left:auto;margin-right:auto">Finds all 2-leg SGP combos with correlated fair values. Single-market players get Vulture commands.</div></div>`;
+  if(!parsed&&!loading){
+    h+=`<div style="text-align:center;padding:40px 20px"><div style="font-size:44px;margin-bottom:10px">⚡</div>
+      <div style="font-size:15px;font-weight:700;color:var(--t2)">Drop a screenshot or Ctrl+V to paste</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:5px;max-width:460px;margin-left:auto;margin-right:auto">AI reads your fair value screenshot, finds SGP combos, and calculates correlated fair values automatically.</div></div>`;
   }
   return h;
 }
 
 function renderCorr(){
-  if(selP) return renderPlayer();
+  if(selP)return renderPlayer();
   const filt=getFiltered();
   let h=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-    <input class="inp" id="search2" value="${escHtml(search2)}" placeholder="Search..." style="width:150px"/>
-    <select class="inp" id="teamF" style="width:95px;font-size:10px">${`<option value="ALL">ALL</option>`+TEAMS.map(t=>`<option value="${t}" ${teamF===t?"selected":""}>${TA[t]}</option>`).join("")}</select>
+    <input class="inp" id="search2" value="${escH(search2)}" placeholder="Search..." style="width:150px"/>
+    <select class="inp" id="teamF" style="width:95px;font-size:10px"><option value="ALL">ALL</option>${TEAMS.map(t=>`<option value="${t}" ${teamF===t?"selected":""}>${TA[t]}</option>`).join("")}</select>
     <select class="inp" id="pairF" style="width:95px;font-size:10px">${PO.map(p=>`<option value="${p.k}" ${pairF===p.k?"selected":""}>${p.l}</option>`).join("")}</select>
     <div style="display:flex;align-items:center;gap:3px"><span style="font-size:9px;color:var(--t3);font-family:var(--m)">GP≥</span>
       <input type="range" id="minGR" min="10" max="50" value="${minG}" style="width:50px;accent-color:#22c55e"/>
       <span style="font-size:10px;font-family:var(--m);color:var(--t2)">${minG}</span></div>
-    <span style="font-size:9px;color:var(--t3);font-family:var(--m);margin-left:auto">${filt.length}p</span>
-  </div>`;
-
-  // Top cards
+    <span style="font-size:9px;color:var(--t3);font-family:var(--m);margin-left:auto">${filt.length}p</span></div>`;
   h+=`<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px">`;
-  filt.slice(0,10).forEach((p,i)=>{
-    const v=p[9+PI[pairF]];const ab=TA[p[1]];
-    h+=`<div class="player-card" data-idx="${D.indexOf(p)}" style="min-width:115px;padding:9px;background:var(--s);border:1px solid var(--bd);border-radius:8px;cursor:pointer;flex-shrink:0">
+  filt.slice(0,10).forEach((p,i)=>{const v=p[9+PI[pairF]];const ab=TA[p[1]];
+    h+=`<div class="player-card rh" data-idx="${D.indexOf(p)}" style="min-width:115px;padding:9px;background:var(--s);border:1px solid var(--bd);border-radius:8px;cursor:pointer;flex-shrink:0">
       <div style="font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p[0]}</div>
       <div style="font-size:8px;color:${TC[ab]||"var(--t3)"};font-family:var(--m);font-weight:600;margin-bottom:3px">${ab} ${p[2]}g</div>
-      <div style="font-size:17px;font-weight:800;color:${ccl(v)};font-family:var(--m)">${v>0?"+":""}${v.toFixed(2)}</div>${badge(v)}
-    </div>`;
-  });
+      <div style="font-size:17px;font-weight:800;color:${ccl(v)};font-family:var(--m)">${v>0?"+":""}${v.toFixed(2)}</div>${bdg(v)}</div>`;});
   h+=`</div>`;
-
-  // Table
-  h+=`<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--bd)"><table>
-    <thead><tr style="background:var(--s)">
-      <th style="text-align:left;padding:6px 10px;position:sticky;left:0;background:var(--s);z-index:1">PLAYER</th>
-      <th>TM</th><th>GP</th>
-      ${S.map(s=>`<th>${s}</th>`).join("")}
-      ${PO.map(po=>`<th class="pair-th" data-pk="${po.k}" style="cursor:pointer;color:${pairF===po.k?"#22c55e":"var(--t3)"};border-bottom:${pairF===po.k?"2px solid #22c55e":"none"};white-space:nowrap">${po.l}</th>`).join("")}
-    </tr></thead><tbody>`;
-  filt.slice(0,80).forEach((p,ri)=>{
-    const ab=TA[p[1]];
+  h+=`<div style="overflow-x:auto;border-radius:8px;border:1px solid var(--bd)"><table><thead><tr style="background:var(--s)">
+    <th style="text-align:left;padding:6px 10px;position:sticky;left:0;background:var(--s);z-index:1">PLAYER</th><th>TM</th><th>GP</th>
+    ${S.map(s=>`<th>${s}</th>`).join("")}
+    ${PO.map(po=>`<th class="pair-th" data-pk="${po.k}" style="cursor:pointer;color:${pairF===po.k?"#22c55e":"var(--t3)"};border-bottom:${pairF===po.k?"2px solid #22c55e":"none"};white-space:nowrap">${po.l}</th>`).join("")}
+  </tr></thead><tbody>`;
+  filt.slice(0,80).forEach((p,ri)=>{const ab=TA[p[1]];
     h+=`<tr class="rh player-row" data-idx="${D.indexOf(p)}" style="cursor:pointer;border-bottom:1px solid var(--bd)">
       <td style="padding:5px 10px;font-weight:600;font-size:11px;position:sticky;left:0;background:var(--bg);z-index:1;white-space:nowrap;text-align:left">${p[0]}</td>
-      <td style="font-size:9px;font-weight:600;color:${TC[ab]||"var(--t2)"}">${ab}</td>
-      <td style="color:var(--t2)">${p[2]}</td>
+      <td style="font-size:9px;font-weight:600;color:${TC[ab]||"var(--t2)"}">${ab}</td><td style="color:var(--t2)">${p[2]}</td>
       ${S.map((s,si)=>`<td style="color:var(--t2)">${p[3+si]}</td>`).join("")}
-      ${PO.map(po=>{const v=p[9+PI[po.k]];return`<td style="font-weight:600;color:${ccl(v)};background:${po.k===pairF?cbg(v):"transparent"}">${v>0?"+":""}${v.toFixed(2)}</td>`;}).join("")}
-    </tr>`;
-  });
-  h+=`</tbody></table></div>`;
-  return h;
+      ${PO.map(po=>{const v=p[9+PI[po.k]];return`<td style="font-weight:600;color:${ccl(v)};background:${po.k===pairF?cbg(v):"transparent"}">${v>0?"+":""}${v.toFixed(2)}</td>`;}).join("")}</tr>`;});
+  h+=`</tbody></table></div>`;return h;
 }
 
 function renderPlayer(){
@@ -304,95 +329,84 @@ function renderPlayer(){
   let h=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
     <button class="bs" id="backBtn" style="font-size:14px;padding:3px 7px">←</button>
     <div><h2 style="font-size:20px;font-weight:800">${p[0]}</h2>
-    <p style="font-size:10px;font-family:var(--m);color:${TC[ab]||"var(--t2)"};font-weight:600">${ab} • ${p[2]}g</p></div>
-  </div>`;
-
-  // Averages
+    <p style="font-size:10px;font-family:var(--m);color:${TC[ab]||"var(--t2)"};font-weight:600">${ab} • ${p[2]}g</p></div></div>`;
   h+=`<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px">`;
   S.forEach((s,i)=>{h+=`<div style="padding:10px;background:var(--s);border:1px solid var(--bd);border-radius:8px;text-align:center">
     <div style="font-size:8px;font-family:var(--m);color:var(--t3);letter-spacing:1.5px;margin-bottom:2px">${s}</div>
     <div style="font-size:18px;font-weight:800;font-family:var(--m)">${p[3+i]}</div></div>`;});
-  h+=`</div>`;
-
-  // Matrix
-  h+=`<div class="cd" style="margin-bottom:12px">
+  h+=`</div><div class="cd" style="margin-bottom:12px">
     <h3 style="font-size:10px;font-family:var(--m);color:var(--t3);letter-spacing:2px;margin-bottom:8px">CORRELATION MATRIX</h3>
-    <table style="border-collapse:separate;border-spacing:3px"><thead><tr><th style="width:38px"></th>`;
-  S.forEach(s=>{h+=`<th style="font-size:9px">${s}</th>`;});
-  h+=`</tr></thead><tbody>`;
-  S.forEach((row,ri)=>{
-    h+=`<tr><td style="font-size:9px;font-weight:700;color:var(--t2);text-align:left;padding-left:6px">${row}</td>`;
-    S.forEach((col,ci)=>{
-      const v=gc(p,row,col);const d=row===col;
-      h+=`<td style="padding:8px;font-size:${d?"10":"13"}px;font-weight:${d?"400":"700"};color:${d?"var(--t3)":ccl(v)};background:${d?"transparent":cbg(v)};border-radius:6px">${d?"—":`${v>0?"+":""}${v.toFixed(2)}`}</td>`;
-    });
-    h+=`</tr>`;
-  });
+    <table style="border-collapse:separate;border-spacing:3px"><thead><tr><th style="width:38px"></th>${S.map(s=>`<th style="font-size:9px">${s}</th>`).join("")}</tr></thead><tbody>`;
+  S.forEach(row=>{h+=`<tr><td style="font-size:9px;font-weight:700;color:var(--t2);text-align:left;padding-left:6px">${row}</td>`;
+    S.forEach(col=>{const v=gc(p,row,col);const d=row===col;
+      h+=`<td style="padding:8px;font-size:${d?"10":"13"}px;font-weight:${d?"400":"700"};color:${d?"var(--t3)":ccl(v)};background:${d?"transparent":cbg(v)};border-radius:6px">${d?"—":`${v>0?"+":""}${v.toFixed(2)}`}</td>`;});
+    h+=`</tr>`;});
   h+=`</tbody></table></div>`;
-
-  // All pairs
   h+=`<div class="cd"><h3 style="font-size:10px;font-family:var(--m);color:var(--t3);letter-spacing:2px;margin-bottom:8px">ALL PAIRS BY STRENGTH</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:5px">`;
-  [...PO].sort((a,b)=>Math.abs(p[9+PI[b.k]])-Math.abs(p[9+PI[a.k]])).forEach(po=>{
-    const v=p[9+PI[po.k]];
+  [...PO].sort((a,b)=>Math.abs(p[9+PI[b.k]])-Math.abs(p[9+PI[a.k]])).forEach(po=>{const v=p[9+PI[po.k]];
     h+=`<div style="padding:8px 10px;background:var(--s2);border-radius:6px;display:flex;justify-content:space-between;align-items:center;border:1px solid ${Math.abs(v)>=.4?ccl(v)+"33":"var(--bd)"}">
-      <div><div style="font-size:10px;font-family:var(--m);font-weight:600">${po.l}</div>${badge(v)}</div>
-      <div style="font-size:16px;font-weight:800;font-family:var(--m);color:${ccl(v)}">${v>0?"+":""}${v.toFixed(2)}</div></div>`;
-  });
-  h+=`</div></div>`;
-  return h;
+      <div><div style="font-size:10px;font-family:var(--m);font-weight:600">${po.l}</div>${bdg(v)}</div>
+      <div style="font-size:16px;font-weight:800;font-family:var(--m);color:${ccl(v)}">${v>0?"+":""}${v.toFixed(2)}</div></div>`;});
+  h+=`</div></div>`;return h;
 }
 
 function getFiltered(){
-  let d=D.filter(p=>p[2]>=minG);
-  if(teamF!=="ALL")d=d.filter(p=>p[1]===teamF);
+  let d=D.filter(p=>p[2]>=minG);if(teamF!=="ALL")d=d.filter(p=>p[1]===teamF);
   if(search2){const s=search2.toLowerCase();d=d.filter(p=>p[0].toLowerCase().includes(s));}
-  const pi=PI[pairF];if(pi!==undefined)d=[...d].sort((a,b)=>Math.abs(b[9+pi])-Math.abs(a[9+pi]));
-  return d;
+  const pi=PI[pairF];if(pi!==undefined)d=[...d].sort((a,b)=>Math.abs(b[9+pi])-Math.abs(a[9+pi]));return d;
 }
 
-function escHtml(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
-function escAttr(s){return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-
 function attachEvents(){
-  // FV input
-  const fvI=document.getElementById("fvInput");
-  if(fvI)fvI.addEventListener("input",e=>{raw=e.target.value;const lines=parseFV(raw);if(lines.length>0){parsed={lines,...buildCombos(lines)};sgpOdds={};vultureCalc={};}else if(!raw)parsed=null;render();});
+  // Drop zone
+  const dz=document.getElementById("dropZone");
+  const fi=document.getElementById("fileInput");
+  if(dz){
+    dz.onclick=()=>fi?.click();
+    dz.ondragover=e=>{e.preventDefault();dz.classList.add("over");};
+    dz.ondragleave=()=>dz.classList.remove("over");
+    dz.ondrop=e=>{e.preventDefault();dz.classList.remove("over");if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);};
+  }
+  if(fi)fi.onchange=e=>{if(e.target.files[0])handleFile(e.target.files[0]);};
 
-  // Search (scanner)
-  const sp=document.getElementById("searchP");
-  if(sp)sp.addEventListener("input",e=>{searchP=e.target.value;render();});
+  // Text fallback
+  const ft=document.getElementById("fvText");
+  if(ft)ft.addEventListener("input",e=>{
+    const text=e.target.value;const lines=parseFVText(text);
+    if(lines.length>0){parsed={lines,...buildCombos(lines)};sgpOdds={};vultureCalc={};render();}
+  });
 
-  // SGP odds inputs
+  // SGP odds
   document.querySelectorAll(".sgp-odds").forEach(el=>el.addEventListener("input",e=>{sgpOdds[e.target.dataset.ci]=e.target.value;render();}));
-
-  // Expand buttons
   document.querySelectorAll(".expand-btn").forEach(el=>el.addEventListener("click",e=>{const ci=parseInt(e.target.dataset.ci);expandedC=expandedC===ci?null:ci;render();}));
-
-  // Copy buttons
-  document.querySelectorAll(".copy-btn").forEach(el=>el.addEventListener("click",e=>{
-    const text=e.target.dataset.text;navigator.clipboard?.writeText(text);e.target.textContent="✓";setTimeout(()=>{e.target.textContent="Copy";},1000);
-  }));
-
-  // Vulture calc inputs
-  document.querySelectorAll(".vc-stat").forEach(el=>el.addEventListener("change",e=>{const si=e.target.dataset.si;vultureCalc[si]={...vultureCalc[si]||{},stat:e.target.value};render();}));
-  document.querySelectorAll(".vc-fair").forEach(el=>el.addEventListener("input",e=>{const si=e.target.dataset.si;vultureCalc[si]={...vultureCalc[si]||{},fair:e.target.value};render();}));
-  document.querySelectorAll(".vc-sgp").forEach(el=>el.addEventListener("input",e=>{const si=e.target.dataset.si;vultureCalc[si]={...vultureCalc[si]||{},sgpOdds:e.target.value};render();}));
-
-  // Corr tab
+  document.querySelectorAll(".copy-btn").forEach(el=>el.addEventListener("click",e=>{const t=e.target.dataset.text;navigator.clipboard?.writeText(t);e.target.textContent="✓";setTimeout(()=>{e.target.textContent="Copy";},1000);}));
+  document.querySelectorAll(".vc-stat").forEach(el=>el.addEventListener("change",e=>{vultureCalc[e.target.dataset.si]={...vultureCalc[e.target.dataset.si]||{},stat:e.target.value};render();}));
+  document.querySelectorAll(".vc-fair").forEach(el=>el.addEventListener("input",e=>{vultureCalc[e.target.dataset.si]={...vultureCalc[e.target.dataset.si]||{},fair:e.target.value};render();}));
+  document.querySelectorAll(".vc-sgp").forEach(el=>el.addEventListener("input",e=>{vultureCalc[e.target.dataset.si]={...vultureCalc[e.target.dataset.si]||{},sgpOdds:e.target.value};render();}));
   const s2=document.getElementById("search2");if(s2)s2.addEventListener("input",e=>{search2=e.target.value;render();});
   const tf=document.getElementById("teamF");if(tf)tf.addEventListener("change",e=>{teamF=e.target.value;render();});
   const pf=document.getElementById("pairF");if(pf)pf.addEventListener("change",e=>{pairF=e.target.value;render();});
   const mg=document.getElementById("minGR");if(mg)mg.addEventListener("input",e=>{minG=parseInt(e.target.value);render();});
-
-  // Player clicks
   document.querySelectorAll(".player-card,.player-row").forEach(el=>el.addEventListener("click",()=>{selP=D[parseInt(el.dataset.idx)];render();}));
   document.querySelectorAll(".pair-th").forEach(el=>el.addEventListener("click",()=>{pairF=el.dataset.pk;render();}));
-
-  // Back button
   const bb=document.getElementById("backBtn");if(bb)bb.addEventListener("click",()=>{selP=null;render();});
+  const sp=document.getElementById("searchP");if(sp)sp.addEventListener("input",e=>{searchP=e.target.value;render();});
 }
 
+// Text fallback parser
+function parseFVText(text){
+  const lines=text.trim().split('\n'),res=[];
+  for(const line of lines){const p=line.split('\t');if(p.length<14)continue;
+    const market=p[4]?.trim(),betName=p[5]?.trim(),book=p[6]?.trim(),oddsRaw=p[9]?.trim(),avgFvRaw=p[13]?.trim();
+    if(!market||!betName)continue;const stat=MM[market];if(!stat)continue;
+    const nm=betName.match(/^(.+?)\s+(Over|Under)\s+([\d.]+)/i);if(!nm)continue;
+    const bm=oddsRaw?.match(/([+-]?\d+)/),fm=avgFvRaw?.match(/([+-]?\d+)/);if(!bm||!fm)continue;
+    res.push({playerName:nm[1].trim(),stat,dir:nm[2],ln:parseFloat(nm[3]),bookOdds:parseInt(bm[1]),fairOdds:parseInt(fm[1]),market,betName,book,label:`${stat} ${nm[2]} ${nm[3]}`});}
+  return res;
+}
+
+// Global paste handler
+document.addEventListener("paste",handlePaste);
 render();
 </script>
 </body>
