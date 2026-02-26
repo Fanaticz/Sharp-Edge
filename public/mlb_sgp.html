@@ -89,6 +89,20 @@ for(const s1 of BSTATS) for(const s2 of BSTATS) STAT_COMBOS.push(s1+'-'+s2);
 let teamF = "ALL", search = "", dataMode = "all", statF = "ALL", sortCol = "maxC", sortDir = -1;
 let minGames = 100, minAdj = 0, selectedPair = null;
 
+// Debounced search to prevent losing focus on every keystroke
+let _searchTimer = null;
+function handleSearch(el) {
+  search = el.value;
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    const pos = el.selectionStart;
+    render();
+    // Refocus after render
+    const inp = document.getElementById("searchInput");
+    if(inp) { inp.focus(); inp.setSelectionRange(pos, pos); }
+  }, 200);
+}
+
 function getCorr(pair, mode) {
   if(mode === "adj") return pair.ca || {};
   if(mode === "2025") return pair.c25 || {};
@@ -193,7 +207,7 @@ function render() {
       <option value="ALL" ${teamF==="ALL"?"selected":""}>All Teams</option>
       ${TEAMS.map(t=>`<option value="${escH(t)}" ${teamF===t?"selected":""}>${TA[t]||t}</option>`).join("")}
     </select>
-    <input class="inp" style="max-width:220px" placeholder="Search players..." value="${escH(search)}" oninput="search=this.value;render()"/>
+    <input class="inp" id="searchInput" style="max-width:220px" placeholder="Search players..." value="${escH(search)}" oninput="handleSearch(this)"/>
     <div class="toggle">
       <button class="${dataMode==="all"?"a":""}" onclick="dataMode='all';render()">ALL DATA</button>
       <button class="${dataMode==="adj"?"a":""}" onclick="dataMode='adj';render()">ADJACENT</button>
@@ -489,17 +503,16 @@ async function fetchTodayGames(dateOverride) {
     // Try multiple URL formats since spring training may need different params
     // Also try CORS proxy if direct fails (MLB API may block browser CORS)
     const baseUrls = [
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&gameType=S&hydrate=probablePitcher,lineups`,
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&gameType=E&hydrate=probablePitcher,lineups`,
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&gameType=R&hydrate=probablePitcher,lineups`,
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&hydrate=probablePitcher,lineups`,
+      `/api/mlb/schedule?date=${todayDate}&gameType=S`,
+      `/api/mlb/schedule?date=${todayDate}&gameType=E`,
+      `/api/mlb/schedule?date=${todayDate}&gameType=R`,
+      `/api/mlb/schedule?date=${todayDate}`,
     ];
     
-    // Also try without hydrate (simpler request, less likely to fail)
+    // Also try without gameType
     const fallbackUrls = [
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&gameType=S`,
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}&gameType=R`,
-      `https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${todayDate}`,
+      `/api/mlb/schedule?date=${todayDate}&gameType=S`,
+      `/api/mlb/schedule?date=${todayDate}`,
     ];
     
     let schedData = null;
@@ -607,7 +620,7 @@ async function fetchTodayGames(dateOverride) {
     for(const g of games) {
       if(g.lineupStatus === "none" && (g.status === "In Progress" || g.status === "Final" || g.status === "Game Over")) {
         try {
-          const feedUrl = `https://statsapi.mlb.com/api/v1.1/game/${g.gamePk}/feed/live`;
+          const feedUrl = `/api/mlb/game/${g.gamePk}/feed`;
           const feedResp = await fetch(feedUrl);
           if(feedResp.ok) {
             const feedData = await feedResp.json();
@@ -750,9 +763,9 @@ function renderToday() {
       <div style="color:var(--r);font-size:12px;font-family:var(--m);margin-bottom:8px">${escH(todayError)}</div>
       <div style="font-size:10px;color:var(--t3);margin-bottom:8px">
         <strong>Troubleshooting:</strong><br/>
-        • If opened via file://, try serving locally: <code style="background:var(--s2);padding:1px 4px;border-radius:3px">npx serve</code> or <code style="background:var(--s2);padding:1px 4px;border-radius:3px">python -m http.server</code><br/>
-        • Check browser console (F12) for CORS errors<br/>
-        • The MLB API at statsapi.mlb.com must be reachable from your browser
+        • Make sure server.js is running with the MLB proxy endpoints<br/>
+        • Check Railway deploy logs for errors<br/>
+        • The /api/mlb/ proxy routes must be available on your server
       </div>
       <button class="tb" onclick="fetchTodayGames()" style="margin-top:4px">↻ RETRY</button>
     </div>`;
@@ -1040,7 +1053,7 @@ async function loadRosters() {
   
   try {
     // Step 1: Get team list
-    const teamsResp = await fetch("https://statsapi.mlb.com/api/v1/teams?sportId=1");
+    const teamsResp = await fetch("/api/mlb/teams");
     if(!teamsResp.ok) throw new Error("Failed to fetch teams: " + teamsResp.status);
     const teamsData = await teamsResp.json();
     
@@ -1057,8 +1070,8 @@ async function loadRosters() {
       const promises = batch.map(async (team) => {
         try {
           // Try 40-man first, fall back to active roster
-          let resp = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster/40Man`);
-          if(!resp.ok) resp = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster`);
+          let resp = await fetch(`/api/mlb/roster/${team.id}`);
+          if(!resp.ok) resp = await fetch(`/api/mlb/roster/${team.id}?type=active`);
           if(!resp.ok) return;
           
           const data = await resp.json();
