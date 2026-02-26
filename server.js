@@ -157,6 +157,60 @@ Parsing rules:
   }
 });
 
+// ─── MLB Stats API Proxy (avoids CORS issues in browser) ───
+app.get("/api/mlb/schedule", async (req, res) => {
+  try {
+    const { date, gameType } = req.query;
+    let url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&hydrate=probablePitcher,lineups`;
+    if (date) url += `&date=${date}`;
+    if (gameType) url += `&gameType=${gameType}`;
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    console.error("MLB schedule proxy error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/mlb/teams", async (req, res) => {
+  try {
+    const resp = await fetch("https://statsapi.mlb.com/api/v1/teams?sportId=1");
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    console.error("MLB teams proxy error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/mlb/roster/:teamId", async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { type } = req.query;
+    const rosterType = type || "40Man";
+    const resp = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster/${rosterType}`);
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    console.error("MLB roster proxy error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/mlb/game/:gamePk/feed", async (req, res) => {
+  try {
+    const { gamePk } = req.params;
+    const resp = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`);
+    const data = await resp.json();
+    res.json(data);
+  } catch (err) {
+    console.error("MLB game feed proxy error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", hasKey: !!ANTHROPIC_API_KEY });
