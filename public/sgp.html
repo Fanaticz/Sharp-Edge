@@ -103,7 +103,8 @@ let tab="scan",parsed=null,sgpOdds={},expandedC=null,vultureCalc={},searchP="";
 let search2="",teamF="ALL",pairF="PTS_REB",minG=20,minMin=20,selP=null;
 let loading=false,loadErr="",imgPreview=null;
 // Combined tab state
-let combTeam="ALL",combStat="AST",combSearch="",combLine={},combBookOdds={};
+let combTeam="ALL",combStat="ALL",combSearch="",combLine={},combBookOdds={};
+let combSort="best",combSortDir="desc",combMinG=15,combExpand=null;
 
 function handleFile(file){
   if(!file||!file.type.startsWith("image/"))return;
@@ -344,85 +345,150 @@ function rPlayer(){
 
 function rComb(){
   const CSTATS=["PTS","REB","AST","TPM"];
-  const CSLABELS={PTS:"Points",REB:"Rebounds",AST:"Assists",TPM:"Threes"};
-  let fp=PAIRS.filter(p=>p[3]>=15&&p[4][combStat]);
+  // Filter pairs
+  let fp=PAIRS.filter(p=>p[3]>=combMinG);
+  if(combStat!=="ALL")fp=fp.filter(p=>p[4][combStat]);
+  else fp=fp.filter(p=>CSTATS.some(s=>p[4][s]));
   if(combTeam!=="ALL")fp=fp.filter(p=>p[0]===combTeam);
   if(combSearch){const s=combSearch.toLowerCase();fp=fp.filter(p=>p[1].toLowerCase().includes(s)||p[2].toLowerCase().includes(s));}
-  fp.sort((a,b)=>{const sa=a[4][combStat],sb=b[4][combStat];return(sb[0]+sb[2])-(sa[0]+sa[2]);});
 
-  let h=`<div style="margin-bottom:14px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <span style="font-size:10px;font-family:var(--m);color:var(--t3);letter-spacing:2px">STAT</span>
-      ${CSTATS.map(s=>`<button class="tb cs ${combStat===s?"a":""}" data-cs="${s}">${CSLABELS[s]}</button>`).join("")}
-    </div>
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-      <input class="inp" id="cSr" value="${escH(combSearch)}" placeholder="Search players..." style="width:160px"/>
-      <select class="inp" id="cTm" style="width:90px;font-size:10px"><option value="ALL">ALL TEAMS</option>${TEAMS.map(t=>`<option value="${t}" ${combTeam===t?"selected":""}>${TA[t]}</option>`).join("")}</select>
-      <span style="font-size:9px;color:var(--t3);font-family:var(--m);margin-left:auto">${fp.length} pairs • 412 total</span>
-    </div>
+  // Sort helper - get correlation for a stat
+  function getR(p,st){const d=p[4][st];return d?d[4]:null;}
+  function getBestR(p){let b=null;CSTATS.forEach(s=>{const r=getR(p,s);if(r!==null&&(b===null||Math.abs(r)>Math.abs(b)))b=r;});return b;}
+  function getMean(p,st){const d=p[4][st];return d?d[5]:null;}
+
+  // Sort
+  const dir=combSortDir==="desc"?-1:1;
+  fp.sort((a,b)=>{
+    let va,vb;
+    if(combSort==="games"){va=a[3];vb=b[3];}
+    else if(combSort==="best"){
+      if(combStat!=="ALL"){va=getR(a,combStat);vb=getR(b,combStat);}
+      else{va=getBestR(a);vb=getBestR(b);}
+      if(va!==null)va=Math.abs(va);if(vb!==null)vb=Math.abs(vb);
+    }
+    else if(combSort==="mean"){
+      const st=combStat!=="ALL"?combStat:"PTS";
+      va=getMean(a,st);vb=getMean(b,st);
+    }
+    else if(CSTATS.includes(combSort)){va=getR(a,combSort);vb=getR(b,combSort);if(va!==null)va=Math.abs(va);if(vb!==null)vb=Math.abs(vb);}
+    else{va=getBestR(a);vb=getBestR(b);if(va!==null)va=Math.abs(va);if(vb!==null)vb=Math.abs(vb);}
+    if(va===null&&vb===null)return 0;if(va===null)return 1;if(vb===null)return -1;
+    return (va-vb)*dir;
+  });
+
+  const arrow=k=>combSort===k?(combSortDir==="desc"?" ↓":" ↑"):"";
+  const thS=`style="padding:6px 8px;font-size:9px;font-family:var(--m);letter-spacing:1.5px;color:var(--t3);text-align:center;cursor:pointer;user-select:none;white-space:nowrap"`;
+  const thSl=`style="padding:6px 8px;font-size:9px;font-family:var(--m);letter-spacing:1.5px;color:var(--t3);text-align:left;cursor:pointer;user-select:none"`;
+
+  let h=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <select class="inp" id="cTm" style="width:120px;font-size:11px;padding:6px 8px"><option value="ALL">All Teams</option>${TEAMS.map(t=>`<option value="${t}" ${combTeam===t?"selected":""}>${t}</option>`).join("")}</select>
+    <input class="inp" id="cSr" value="${escH(combSearch)}" placeholder="Search players..." style="width:180px;font-size:11px;padding:6px 8px"/>
+    <span style="font-size:9px;color:var(--t3);font-family:var(--m);margin-left:auto">${fp.length} pairs</span>
   </div>`;
 
-  h+=`<div style="font-size:10px;color:var(--t2);font-family:var(--m);padding:8px 12px;background:rgba(34,197,94,.04);border:1px solid rgba(34,197,94,.15);border-radius:8px;margin-bottom:14px">
-    <span style="color:#22c55e;font-weight:700">HOW IT WORKS:</span> Uses game-log data to compute teammate <b>between-player correlations</b> for combined stat lines. 
-    Enter the FD combined line → get fair value using the actual distribution (mean + SD + correlation). 
-    Then enter the FD odds → see EV%. Positive r means they boom/bust together → over hits more than independence implies.</div>`;
+  h+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+    <span style="font-size:9px;font-family:var(--m);color:var(--t3);letter-spacing:1.5px">STAT PAIR:</span>
+    <button class="tb cs ${combStat==="ALL"?"a":""}" data-cs="ALL">ALL</button>
+    ${CSTATS.map(s=>`<button class="tb cs ${combStat===s?"a":""}" data-cs="${s}">${s}</button>`).join("")}
+  </div>`;
+
+  h+=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <span style="font-size:9px;font-family:var(--m);color:var(--t3);letter-spacing:1.5px">MIN GAMES:</span>
+    <input class="inp" id="cMg" type="number" value="${combMinG}" style="width:55px;text-align:center;font-size:11px;padding:5px 6px"/>
+  </div>`;
+
+  h+=`<div style="display:flex;gap:12px;margin-bottom:12px;font-size:9px;font-family:var(--m)">
+    <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:3px"></span>Strong (≥0.5)</span>
+    <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:3px"></span>Moderate (0.3-0.5)</span>
+    <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6b7280;margin-right:3px"></span>Weak (0.1-0.3)</span>
+    <span style="margin-left:auto;color:#22c55e;font-size:9px">Click any row for fair value calc →</span>
+  </div>`;
 
   if(fp.length===0){h+=`<div style="text-align:center;padding:30px;color:var(--t3)">No pairs found</div>`;return h;}
 
-  fp.slice(0,40).forEach((p,i)=>{
-    const sd=p[4][combStat];if(!sd)return;
-    const[m1,s1,m2,s2,r,cm,cs]=sd;
+  h+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead><tr style="border-bottom:1px solid var(--bd)">
+    <th ${thSl}>PLAYER 1</th><th ${thSl}>PLAYER 2</th>
+    <th ${thS}>TEAM</th>
+    <th ${thS} class="cSrt" data-sk="games">GAMES${arrow("games")}</th>
+    <th ${thS} class="cSrt" data-sk="PTS">PTS r${arrow("PTS")}</th>
+    <th ${thS} class="cSrt" data-sk="REB">REB r${arrow("REB")}</th>
+    <th ${thS} class="cSrt" data-sk="AST">AST r${arrow("AST")}</th>
+    <th ${thS} class="cSrt" data-sk="TPM">TPM r${arrow("TPM")}</th>
+  </tr></thead><tbody>`;
+
+  fp.slice(0,80).forEach((p,i)=>{
     const ab=TA[p[0]]||"";const tc=TC[ab]||"#666";
-    const key=`${p[1]}|${p[2]}|${combStat}`;
-    const ln=combLine[key]||"";const bo=combBookOdds[key]||"";
+    const rs={};let bestAbs=0,bestR=0;
+    CSTATS.forEach(s=>{const d=p[4][s];rs[s]=d?d[4]:null;if(rs[s]!==null&&Math.abs(rs[s])>bestAbs){bestAbs=Math.abs(rs[s]);bestR=rs[s];}});
+    const lvl=bestAbs>=.5?"STRONG":bestAbs>=.3?"MOD":bestAbs>=.1?"WEAK":"—";
+    const lvlC=bestAbs>=.5?"#22c55e":bestAbs>=.3?"#f59e0b":"#6b7280";
+    const pKey=`${p[1]}|${p[2]}`;
+    const isExp=combExpand===pKey;
 
-    let fvS="—",probS="—",evS="—",qkS="—",eC="var(--t3)";
-    if(ln){const lv=parseFloat(ln);if(!isNaN(lv)){
-      const prob=pairOverProb(cm,cs,lv-.5);
-      const fv=prob>=.5?Math.round(-prob/(1-prob)*100):Math.round((1-prob)/prob*100);
-      probS=`${(prob*100).toFixed(1)}%`;fvS=fA(fv);
-      if(bo){const bv=parseInt(bo);if(!isNaN(bv)){
-        const dec=bv>0?bv/100+1:100/Math.abs(bv)+1;
-        const ev=(prob*dec-1)*100;const kf=(prob*dec-1)/(dec-1);const qk=Math.max(0,kf*.25);
-        evS=`${ev>0?"+":""}${ev.toFixed(1)}%`;qkS=`${(qk*100).toFixed(2)}%`;
-        eC=ev>0?"#22c55e":"#ef4444";
-      }}
-    }}
+    h+=`<tr class="cRow" data-pk="${escA(pKey)}" style="border-bottom:1px solid var(--bd);cursor:pointer;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,.03)'" onmouseout="this.style.background='${isExp?"rgba(34,197,94,.03)":""}'"${isExp?' style="background:rgba(34,197,94,.03)"':''}>
+      <td style="padding:7px 8px;font-weight:600">${p[1]}</td>
+      <td style="padding:7px 8px;font-weight:600">${p[2]}</td>
+      <td style="padding:7px 8px;text-align:center"><span style="font-size:9px;font-family:var(--m);font-weight:700;color:${tc};padding:1px 5px;border-radius:3px;background:${tc}18">${ab}</span></td>
+      <td style="padding:7px 8px;text-align:center;font-family:var(--m)">${p[3]}</td>`;
 
-    h+=`<div class="cd" style="border:1px solid ${eC!=="#22c55e"?"var(--bd)":"rgba(34,197,94,.25)"};${eC==="#22c55e"?"background:rgba(34,197,94,.03)":""}">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="flex:1;min-width:220px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:14px;font-weight:700">${p[1]}</span>
-            <span style="font-size:10px;color:var(--t3);font-family:var(--m)">+</span>
-            <span style="font-size:14px;font-weight:700">${p[2]}</span>
-            ${ab?`<span style="font-size:9px;font-family:var(--m);font-weight:600;color:${tc};padding:1px 5px;border-radius:4px;background:${tc}18">${ab}</span>`:""}
+    CSTATS.forEach(s=>{
+      const rv=rs[s];
+      if(rv===null){h+=`<td style="padding:7px 8px;text-align:center;color:var(--t3)">—</td>`;return;}
+      const ac=Math.abs(rv);const col=ac>=.5?"#22c55e":ac>=.3?"#f59e0b":ac>=.1?"#94a3b8":"var(--t3)";
+      const barW=Math.min(ac*100,50);
+      h+=`<td style="padding:7px 8px;text-align:center;font-family:var(--m);position:relative">
+        <div style="position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:${barW}px;height:3px;background:${col};border-radius:2px;opacity:.35"></div>
+        <span style="font-weight:700;color:${col}">${rv>0?"+":""}${rv.toFixed(3)}</span></td>`;
+    });
+
+    h+=`</tr>`;
+
+    // Expanded row for FV calc
+    if(isExp){
+      h+=`<tr><td colspan="10" style="padding:0;border-bottom:1px solid rgba(34,197,94,.25)">
+        <div style="padding:10px 12px;background:rgba(34,197,94,.03)">
+        <div style="display:flex;gap:0;flex-wrap:wrap">`;
+      CSTATS.forEach(s=>{
+        const sd=p[4][s];if(!sd)return;
+        const[m1,s1,m2,s2,r,cm,cs]=sd;
+        const key=`${p[1]}|${p[2]}|${s}`;
+        const ln=combLine[key]||"";const bo=combBookOdds[key]||"";
+        let fvS="—",probS="—",evS="—",eC="var(--t3)";
+        if(ln){const lv=parseFloat(ln);if(!isNaN(lv)){
+          const prob=pairOverProb(cm,cs,lv-.5);
+          const fv=prob>=.5?Math.round(-prob/(1-prob)*100):Math.round((1-prob)/prob*100);
+          probS=`${(prob*100).toFixed(1)}%`;fvS=fA(fv);
+          if(bo){const bv=parseInt(bo);if(!isNaN(bv)){
+            const dec=bv>0?bv/100+1:100/Math.abs(bv)+1;
+            const ev=(prob*dec-1)*100;
+            evS=`${ev>0?"+":""}${ev.toFixed(1)}%`;eC=ev>0?"#22c55e":"#ef4444";
+          }}
+        }}
+        h+=`<div style="flex:1;min-width:200px;padding:8px 12px;border-right:1px solid var(--bd)">
+          <div style="font-size:10px;font-family:var(--m);font-weight:700;color:var(--t2);margin-bottom:6px;letter-spacing:1px">${s}</div>
+          <div style="font-size:9px;font-family:var(--m);color:var(--t3);margin-bottom:4px">
+            ${p[1].split(" ").pop()}: <b style="color:var(--t1)">${m1}</b>±${s1}  ·  ${p[2].split(" ").pop()}: <b style="color:var(--t1)">${m2}</b>±${s2}
           </div>
-          <div style="display:flex;gap:10px;margin-top:3px;font-size:10px;font-family:var(--m);color:var(--t2)">
-            <span>${p[1].split(" ").pop()}: <b>${m1}</b>±${s1}</span>
-            <span>${p[2].split(" ").pop()}: <b>${m2}</b>±${s2}</span>
-            <span>${p[3]}g shared</span>
+          <div style="font-size:9px;font-family:var(--m);color:var(--t3);margin-bottom:6px">
+            Combined: <b style="color:var(--t1)">${cm.toFixed(1)}</b> ± ${cs.toFixed(1)}  ·  r = <span style="color:${ccl(r)};font-weight:700">${r>0?"+":""}${r.toFixed(3)}</span>
           </div>
-        </div>
-        <div style="text-align:center;min-width:55px"><div style="font-size:8px;color:var(--t3);font-family:var(--m)">CORR</div>
-          <div style="font-size:15px;font-weight:800;font-family:var(--m);color:${ccl(r)}">${r>0?"+":""}${r.toFixed(3)}</div>${bdg(r)}</div>
-        <div style="text-align:center;min-width:55px"><div style="font-size:8px;color:var(--t3);font-family:var(--m)">MEAN</div>
-          <div style="font-size:15px;font-weight:800;font-family:var(--m)">${cm.toFixed(1)}</div>
-          <div style="font-size:9px;color:var(--t3);font-family:var(--m)">σ ${cs.toFixed(1)}</div></div>
-        <div style="min-width:70px"><div style="font-size:8px;color:var(--t3);font-family:var(--m);margin-bottom:2px">FD LINE</div>
-          <input class="inp cl" data-ck="${escA(key)}" value="${escH(ln)}" placeholder="12" style="width:70px;text-align:center;font-size:13px;font-weight:700;padding:5px 6px"/></div>
-        <div style="text-align:center;min-width:55px"><div style="font-size:8px;color:var(--t3);font-family:var(--m)">FAIR</div>
-          <div style="font-size:15px;font-weight:800;font-family:var(--m);color:#22c55e">${fvS}</div>
-          <div style="font-size:9px;color:var(--t3);font-family:var(--m)">${probS}</div></div>
-        <div style="min-width:80px"><div style="font-size:8px;color:var(--t3);font-family:var(--m);margin-bottom:2px">FD ODDS</div>
-          <input class="inp co" data-ck="${escA(key)}" value="${escH(bo)}" placeholder="-163" style="width:80px;text-align:center;font-size:13px;font-weight:700;padding:5px 6px"/></div>
-        <div style="text-align:center;min-width:55px"><div style="font-size:8px;color:var(--t3);font-family:var(--m)">EV%</div>
-          <div style="font-size:17px;font-weight:800;font-family:var(--m);color:${eC}">${evS}</div></div>
-        <div style="text-align:center;min-width:45px"><div style="font-size:8px;color:var(--t3);font-family:var(--m)">QK</div>
-          <div style="font-size:13px;font-weight:700;font-family:var(--m);color:${eC}">${qkS}</div></div>
-      </div>
-    </div>`;
+          <div style="display:flex;gap:4px;align-items:center">
+            <input class="inp cl" data-ck="${escA(key)}" value="${escH(ln)}" placeholder="Line" style="width:55px;text-align:center;font-size:11px;padding:4px"/>
+            <input class="inp co" data-ck="${escA(key)}" value="${escH(bo)}" placeholder="Odds" style="width:60px;text-align:center;font-size:11px;padding:4px"/>
+            <span style="font-size:10px;font-family:var(--m);color:var(--t2);margin-left:2px">FV:</span>
+            <span style="font-size:11px;font-family:var(--m);font-weight:800;color:#22c55e">${fvS}</span>
+            <span style="font-size:9px;font-family:var(--m);color:var(--t3)">${probS}</span>
+            <span style="font-size:12px;font-family:var(--m);font-weight:800;color:${eC};margin-left:2px">${evS}</span>
+          </div>
+        </div>`;
+      });
+      h+=`</div></div></td></tr>`;
+    }
   });
+
+  h+=`</tbody></table></div>`;
   return h;
 }
 
@@ -457,6 +523,14 @@ function bindEvents(){
   document.querySelectorAll(".cs").forEach(el=>el.addEventListener("click",()=>{combStat=el.dataset.cs;render();}));
   const cSr=document.getElementById("cSr");if(cSr)cSr.addEventListener("input",e=>{combSearch=e.target.value;debouncedRender();});
   const cTm=document.getElementById("cTm");if(cTm)cTm.addEventListener("change",e=>{combTeam=e.target.value;render();});
+  const cMg=document.getElementById("cMg");if(cMg)cMg.addEventListener("input",e=>{combMinG=parseInt(e.target.value)||0;debouncedRender();});
+  document.querySelectorAll(".cSrt").forEach(el=>el.addEventListener("click",()=>{
+    const k=el.dataset.sk;if(combSort===k)combSortDir=combSortDir==="desc"?"asc":"desc";else{combSort=k;combSortDir="desc";}render();
+  }));
+  document.querySelectorAll(".cRow").forEach(el=>el.addEventListener("click",e=>{
+    if(e.target.tagName==="INPUT")return;
+    const pk=el.dataset.pk;combExpand=combExpand===pk?null:pk;render();
+  }));
   document.querySelectorAll(".cl").forEach(el=>el.addEventListener("input",e=>{combLine[e.target.dataset.ck]=e.target.value;debouncedRender();}));
   document.querySelectorAll(".co").forEach(el=>el.addEventListener("input",e=>{combBookOdds[e.target.dataset.ck]=e.target.value;debouncedRender();}));
 }
