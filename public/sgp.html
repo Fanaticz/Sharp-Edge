@@ -106,7 +106,7 @@ let loading=false,loadErr="",imgPreview=null;
 let combTeam="ALL",combStat="ALL",combSearch="",combLine={},combBookOdds={};
 let combSort="best",combSortDir="desc",combMinG=15,combExpand=null;
 let combIn={};// keyed by "p1|p2|stat" -> {p1l,p1o,p2l,p2o,cl,co}
-function getCombIn(k){return combIn[k]||(combIn[k]={p1l:"",p1o:"",p2l:"",p2o:"",cl:"",co:""});}
+function getCombIn(k){return combIn[k]||(combIn[k]={p1l:"",p1o:"",p2l:"",p2o:"",cl:"",coo:"",cou:""});}
 // Inverse normal CDF (Beasley-Springer-Moro)
 function invNormCDF(p){if(p<=0)return-8;if(p>=1)return 8;
 const a=[0,-3.969683028665376e1,2.209460984245205e2,-2.759285104469687e2,1.383577518672690e2,-3.066479806614716e1,2.506628277459239e0];
@@ -499,12 +499,14 @@ function rComb(){
         }
         if(hasP2&&!hasP1){const im2=impliedMean(p2l,p2o,s2);im2S=im2.toFixed(1);}
 
-        const cl=parseFloat(ci.cl);const co=parseInt(ci.co);
+        const cl=parseFloat(ci.cl);const coo=parseInt(ci.coo);const cou=parseInt(ci.cou);
         let altH="";
         if(!isNaN(cl)){
-          const hasCo=!isNaN(co)&&co!==0;
+          const hasOO=!isNaN(coo)&&coo!==0;
+          const hasOU=!isNaN(cou)&&cou!==0;
+          const hasAny=hasOO||hasOU;
           altH=`<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:10px;font-family:var(--m)">
-            <tr style="color:var(--t3);font-size:8px;letter-spacing:1px"><td style="padding:2px 4px">LINE</td><td style="padding:2px 4px;text-align:center">PROB</td><td style="padding:2px 4px;text-align:center">OVER</td><td style="padding:2px 4px;text-align:center">UNDER</td>${hasCo?`<td style="padding:2px 4px;text-align:center">EV%</td>`:""}</tr>`;
+            <tr style="color:var(--t3);font-size:8px;letter-spacing:1px"><td style="padding:2px 4px">LINE</td><td style="padding:2px 4px;text-align:center">PROB</td><td style="padding:2px 4px;text-align:center">OVER</td><td style="padding:2px 4px;text-align:center">UNDER</td>${hasAny?`<td style="padding:2px 4px;text-align:center">EV%</td>`:""}</tr>`;
           for(let off=-2;off<=2;off++){
             const altLine=cl+off;
             const prob=pairOverProb(useMean,useSD,altLine-.5);
@@ -513,8 +515,14 @@ function rComb(){
             const fvU=uProb>=.5?Math.round(-uProb/(1-uProb)*100):Math.round((1-uProb)/uProb*100);
             const isCurr=off===0;
             let evCell="";
-            if(hasCo){const dec=co>0?co/100+1:100/Math.abs(co)+1;const ev=(prob*dec-1)*100;const eC=ev>0?"#22c55e":"#ef4444";
-              evCell=`<td style="padding:2px 4px;text-align:center;font-weight:700;color:${eC}">${ev>0?"+":""}${ev.toFixed(1)}%</td>`;}
+            if(hasAny&&isCurr){
+              let evParts=[];
+              if(hasOO){const dec=coo>0?coo/100+1:100/Math.abs(coo)+1;const ev=(prob*dec-1)*100;const eC=ev>0?"#22c55e":"#ef4444";
+                evParts.push(`<span style="color:${eC}">O ${ev>0?"+":""}${ev.toFixed(1)}%</span>`);}
+              if(hasOU){const dec=cou>0?cou/100+1:100/Math.abs(cou)+1;const ev=(uProb*dec-1)*100;const eC=ev>0?"#22c55e":"#ef4444";
+                evParts.push(`<span style="color:${eC}">U ${ev>0?"+":""}${ev.toFixed(1)}%</span>`);}
+              evCell=`<td style="padding:2px 4px;text-align:center;font-weight:700;font-size:9px">${evParts.join(" ")}</td>`;
+            } else if(hasAny){evCell=`<td style="padding:2px 4px"></td>`;}
             altH+=`<tr style="${isCurr?"background:rgba(34,197,94,.08);font-weight:700":""}">
               <td style="padding:2px 4px;${isCurr?"color:#22c55e":""}">O ${altLine}</td>
               <td style="padding:2px 4px;text-align:center">${(prob*100).toFixed(1)}%</td>
@@ -542,7 +550,10 @@ function rComb(){
           <div style="display:flex;gap:4px;align-items:center;margin-bottom:2px">
             <span style="font-size:9px;font-family:var(--m);color:var(--t2)">FD combo</span>
             <input class="inp ci" data-ck="${escA(key)}" data-cf="cl" value="${escH(ci.cl)}" placeholder="Line" style="width:48px;text-align:center;font-size:10px;padding:3px;font-weight:700"/>
-            <input class="inp ci" data-ck="${escA(key)}" data-cf="co" value="${escH(ci.co)}" placeholder="Odds" style="width:55px;text-align:center;font-size:10px;padding:3px;font-weight:700"/>
+            <span style="font-size:8px;font-family:var(--m);color:var(--t3)">O</span>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="coo" value="${escH(ci.coo||"")}" placeholder="-110" style="width:52px;text-align:center;font-size:10px;padding:3px;font-weight:700;color:#22c55e"/>
+            <span style="font-size:8px;font-family:var(--m);color:var(--t3)">U</span>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="cou" value="${escH(ci.cou||"")}" placeholder="-110" style="width:52px;text-align:center;font-size:10px;padding:3px;font-weight:700;color:#ef4444"/>
           </div>
           ${altH}
         </div>`;
