@@ -149,12 +149,13 @@ let _debounceTimer=null;
 function debouncedRender(){clearTimeout(_debounceTimer);_debounceTimer=setTimeout(render,300);}
 
 function render(){
+  // Skip render if user is typing in an expanded row input
   const _ae=document.activeElement;
+  if(_ae&&_ae.classList&&_ae.classList.contains("ci"))return;
   const fId=_ae?_ae.id:"";
   const fCk=_ae?_ae.dataset?.ck:"";
   const fCf=_ae?_ae.dataset?.cf:"";
   const fCls=_ae?_ae.className:"";
-  const fVal=_ae?_ae.value:"";
   const fSel=_ae?_ae.selectionStart:0;
   // Save focus state before re-render
   const ae=document.activeElement;
@@ -503,11 +504,13 @@ function rComb(){
         if(!isNaN(cl)){
           const hasCo=!isNaN(co)&&co!==0;
           altH=`<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:10px;font-family:var(--m)">
-            <tr style="color:var(--t3);font-size:8px;letter-spacing:1px"><td style="padding:2px 4px">LINE</td><td style="padding:2px 4px;text-align:center">PROB</td><td style="padding:2px 4px;text-align:center">FAIR</td>${hasCo?`<td style="padding:2px 4px;text-align:center">EV%</td>`:""}</tr>`;
+            <tr style="color:var(--t3);font-size:8px;letter-spacing:1px"><td style="padding:2px 4px">LINE</td><td style="padding:2px 4px;text-align:center">PROB</td><td style="padding:2px 4px;text-align:center">OVER</td><td style="padding:2px 4px;text-align:center">UNDER</td>${hasCo?`<td style="padding:2px 4px;text-align:center">EV%</td>`:""}</tr>`;
           for(let off=-2;off<=2;off++){
             const altLine=cl+off;
             const prob=pairOverProb(useMean,useSD,altLine-.5);
-            const fv=prob>=.5?Math.round(-prob/(1-prob)*100):Math.round((1-prob)/prob*100);
+            const uProb=1-prob;
+            const fvO=prob>=.5?Math.round(-prob/(1-prob)*100):Math.round((1-prob)/prob*100);
+            const fvU=uProb>=.5?Math.round(-uProb/(1-uProb)*100):Math.round((1-uProb)/uProb*100);
             const isCurr=off===0;
             let evCell="";
             if(hasCo){const dec=co>0?co/100+1:100/Math.abs(co)+1;const ev=(prob*dec-1)*100;const eC=ev>0?"#22c55e":"#ef4444";
@@ -515,7 +518,8 @@ function rComb(){
             altH+=`<tr style="${isCurr?"background:rgba(34,197,94,.08);font-weight:700":""}">
               <td style="padding:2px 4px;${isCurr?"color:#22c55e":""}">O ${altLine}</td>
               <td style="padding:2px 4px;text-align:center">${(prob*100).toFixed(1)}%</td>
-              <td style="padding:2px 4px;text-align:center;color:#22c55e;font-weight:700">${fA(fv)}</td>${evCell}</tr>`;}
+              <td style="padding:2px 4px;text-align:center;color:#22c55e;font-weight:700">${fA(fvO)}</td>
+              <td style="padding:2px 4px;text-align:center;color:#ef4444;font-weight:700">${fA(fvU)}</td>${evCell}</tr>`;}
           altH+=`</table>`;}
 
         h+=`<div style="flex:1;min-width:210px;padding:8px 12px;border-right:1px solid var(--bd)">
@@ -590,9 +594,10 @@ function bindEvents(){
     if(e.target.tagName==="INPUT")return;
     const pk=el.dataset.pk;combExpand=combExpand===pk?null:pk;render();
   }));
-  document.querySelectorAll(".ci").forEach(el=>el.addEventListener("input",e=>{
-    const k=e.target.dataset.ck,f=e.target.dataset.cf;getCombIn(k)[f]=e.target.value;debouncedRender();
-  }));
+  document.querySelectorAll(".ci").forEach(el=>{
+    el.addEventListener("change",e=>{const k=e.target.dataset.ck,f=e.target.dataset.cf;getCombIn(k)[f]=e.target.value;render();});
+    el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.target.blur();}});
+  });
 }
 
 render();
