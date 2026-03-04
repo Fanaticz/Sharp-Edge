@@ -365,14 +365,13 @@ function rComb(){
     else if(combSort==="best"){
       if(combStat!=="ALL"){va=getR(a,combStat);vb=getR(b,combStat);}
       else{va=getBestR(a);vb=getBestR(b);}
-      if(va!==null)va=Math.abs(va);if(vb!==null)vb=Math.abs(vb);
     }
     else if(combSort==="mean"){
       const st=combStat!=="ALL"?combStat:"PTS";
       va=getMean(a,st);vb=getMean(b,st);
     }
-    else if(CSTATS.includes(combSort)){va=getR(a,combSort);vb=getR(b,combSort);if(va!==null)va=Math.abs(va);if(vb!==null)vb=Math.abs(vb);}
-    else{va=getBestR(a);vb=getBestR(b);if(va!==null)va=Math.abs(va);if(vb!==null)vb=Math.abs(vb);}
+    else if(CSTATS.includes(combSort)){va=getR(a,combSort);vb=getR(b,combSort);}
+    else{va=getBestR(a);vb=getBestR(b);}
     if(va===null&&vb===null)return 0;if(va===null)return 1;if(vb===null)return -1;
     return (va-vb)*dir;
   });
