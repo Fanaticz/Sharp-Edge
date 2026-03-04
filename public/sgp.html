@@ -105,6 +105,24 @@ let loading=false,loadErr="",imgPreview=null;
 // Combined tab state
 let combTeam="ALL",combStat="ALL",combSearch="",combLine={},combBookOdds={};
 let combSort="best",combSortDir="desc",combMinG=15,combExpand=null;
+let combIn={};// keyed by "p1|p2|stat" -> {p1l,p1o,p2l,p2o,cl,co}
+function getCombIn(k){return combIn[k]||(combIn[k]={p1l:"",p1o:"",p2l:"",p2o:"",cl:"",co:""});}
+// Inverse normal CDF (Beasley-Springer-Moro)
+function invNormCDF(p){if(p<=0)return-8;if(p>=1)return 8;
+const a=[0,-3.969683028665376e1,2.209460984245205e2,-2.759285104469687e2,1.383577518672690e2,-3.066479806614716e1,2.506628277459239e0];
+const b=[0,-5.447609879822406e1,1.615858368580409e2,-1.556989798598866e2,6.680131188771972e1,-1.328068155288572e1];
+const c=[0,-7.784894002430293e-3,-3.223964580411365e-1,-2.400758277161838e0,-2.549732539343734e0,4.374664141464968e0,2.938163982698783e0];
+const d=[0,7.784695709041462e-3,3.224671290700398e-1,2.445134137142996e0,3.754408661907416e0];
+const pL=0.02425,pH=1-pL;let q,r;
+if(p<pL){q=Math.sqrt(-2*Math.log(p));return(((((c[1]*q+c[2])*q+c[3])*q+c[4])*q+c[5])*q+c[6])/((((d[1]*q+d[2])*q+d[3])*q+d[4])*q+1);}
+if(p<=pH){q=p-0.5;r=q*q;return(((((a[1]*r+a[2])*r+a[3])*r+a[4])*r+a[5])*r+a[6])*q/(((((b[1]*r+b[2])*r+b[3])*r+b[4])*r+b[5])*r+1);}
+q=Math.sqrt(-2*Math.log(1-p));return-(((((c[1]*q+c[2])*q+c[3])*q+c[4])*q+c[5])*q+c[6])/((((d[1]*q+d[2])*q+d[3])*q+d[4])*q+1);}
+// From fair American odds + line + sd -> implied mean
+function impliedMean(line,fairOdds,sd){
+const dec=fairOdds>0?fairOdds/100+1:100/Math.abs(fairOdds)+1;
+const p=1/dec;// implied over prob
+const z=invNormCDF(1-p);
+return(line-0.5)-z*sd;}
 
 function handleFile(file){
   if(!file||!file.type.startsWith("image/"))return;
@@ -128,9 +146,16 @@ document.addEventListener("paste",e=>{
 });
 
 let _debounceTimer=null;
-function debouncedRender(){clearTimeout(_debounceTimer);_debounceTimer=setTimeout(render,150);}
+function debouncedRender(){clearTimeout(_debounceTimer);_debounceTimer=setTimeout(render,300);}
 
 function render(){
+  const _ae=document.activeElement;
+  const fId=_ae?_ae.id:"";
+  const fCk=_ae?_ae.dataset?.ck:"";
+  const fCf=_ae?_ae.dataset?.cf:"";
+  const fCls=_ae?_ae.className:"";
+  const fVal=_ae?_ae.value:"";
+  const fSel=_ae?_ae.selectionStart:0;
   // Save focus state before re-render
   const ae=document.activeElement;
   const focusId=ae?.id||null;
@@ -171,6 +196,12 @@ function _render(){
   </div>
   <div style="max-width:1200px;margin:0 auto;padding:16px 20px">${tab==="scan"?rScan():tab==="corr"?rCorr():rComb()}</div>`;
   bindEvents();
+  // Restore focus
+  let el=null;
+  if(fId)el=document.getElementById(fId);
+  else if(fCk&&fCls.includes("ci")){const all=document.querySelectorAll(`.ci[data-ck="${fCk}"]`);all.forEach(x=>{if(x.dataset.cf===fCf)el=x;});}
+  else if(fCk){const sel=fCls.includes("cl")?".cl":".co";el=document.querySelector(`${sel}[data-ck="${fCk}"]`);}
+  if(el){el.focus();try{el.setSelectionRange(fSel,fSel);}catch(e){}}
 }
 
 function rScan(){
@@ -417,7 +448,7 @@ function rComb(){
     <th ${thS} class="cSrt" data-sk="TPM">TPM r${arrow("TPM")}</th>
   </tr></thead><tbody>`;
 
-  fp.slice(0,80).forEach((p,i)=>{
+  fp.slice(0,50).forEach((p,i)=>{
     const ab=TA[p[0]]||"";const tc=TC[ab]||"#666";
     const rs={};let bestAbs=0,bestR=0;
     CSTATS.forEach(s=>{const d=p[4][s];rs[s]=d?d[4]:null;if(rs[s]!==null&&Math.abs(rs[s])>bestAbs){bestAbs=Math.abs(rs[s]);bestR=rs[s];}});
@@ -446,41 +477,70 @@ function rComb(){
 
     // Expanded row for FV calc
     if(isExp){
-      h+=`<tr><td colspan="10" style="padding:0;border-bottom:1px solid rgba(34,197,94,.25)">
-        <div style="padding:10px 12px;background:rgba(34,197,94,.03)">
+      h+=`<tr><td colspan="8" style="padding:0;border-bottom:1px solid rgba(34,197,94,.25)">
+        <div style="padding:12px 14px;background:rgba(34,197,94,.03)">
         <div style="display:flex;gap:0;flex-wrap:wrap">`;
       CSTATS.forEach(s=>{
         const sd=p[4][s];if(!sd)return;
         const[m1,s1,m2,s2,r,cm,cs]=sd;
         const key=`${p[1]}|${p[2]}|${s}`;
-        const ln=combLine[key]||"";const bo=combBookOdds[key]||"";
-        let fvS="—",probS="—",evS="—",eC="var(--t3)";
-        if(ln){const lv=parseFloat(ln);if(!isNaN(lv)){
-          const prob=pairOverProb(cm,cs,lv-.5);
-          const fv=prob>=.5?Math.round(-prob/(1-prob)*100):Math.round((1-prob)/prob*100);
-          probS=`${(prob*100).toFixed(1)}%`;fvS=fA(fv);
-          if(bo){const bv=parseInt(bo);if(!isNaN(bv)){
-            const dec=bv>0?bv/100+1:100/Math.abs(bv)+1;
-            const ev=(prob*dec-1)*100;
-            evS=`${ev>0?"+":""}${ev.toFixed(1)}%`;eC=ev>0?"#22c55e":"#ef4444";
-          }}
-        }}
-        h+=`<div style="flex:1;min-width:200px;padding:8px 12px;border-right:1px solid var(--bd)">
-          <div style="font-size:10px;font-family:var(--m);font-weight:700;color:var(--t2);margin-bottom:6px;letter-spacing:1px">${s}</div>
-          <div style="font-size:9px;font-family:var(--m);color:var(--t3);margin-bottom:4px">
-            ${p[1].split(" ").pop()}: <b style="color:var(--t1)">${m1}</b>±${s1}  ·  ${p[2].split(" ").pop()}: <b style="color:var(--t1)">${m2}</b>±${s2}
+        const ci=getCombIn(key);
+        const p1Last=p[1].split(" ").pop();
+        const p2Last=p[2].split(" ").pop();
+
+        let useMean=cm,useSD=cs;
+        let im1S="",im2S="",adjMeanS="";
+        const p1l=parseFloat(ci.p1l),p1o=parseInt(ci.p1o),p2l=parseFloat(ci.p2l),p2o=parseInt(ci.p2o);
+        const hasP1=!isNaN(p1l)&&!isNaN(p1o)&&p1o!==0;
+        const hasP2=!isNaN(p2l)&&!isNaN(p2o)&&p2o!==0;
+        if(hasP1){const im=impliedMean(p1l,p1o,s1);im1S=im.toFixed(1);
+          if(hasP2){const im2=impliedMean(p2l,p2o,s2);im2S=im2.toFixed(1);useMean=im+im2;adjMeanS=useMean.toFixed(1);}
+        }
+        if(hasP2&&!hasP1){const im2=impliedMean(p2l,p2o,s2);im2S=im2.toFixed(1);}
+
+        const cl=parseFloat(ci.cl);const co=parseInt(ci.co);
+        let altH="";
+        if(!isNaN(cl)){
+          const hasCo=!isNaN(co)&&co!==0;
+          altH=`<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:10px;font-family:var(--m)">
+            <tr style="color:var(--t3);font-size:8px;letter-spacing:1px"><td style="padding:2px 4px">LINE</td><td style="padding:2px 4px;text-align:center">PROB</td><td style="padding:2px 4px;text-align:center">FAIR</td>${hasCo?`<td style="padding:2px 4px;text-align:center">EV%</td>`:""}</tr>`;
+          for(let off=-2;off<=2;off++){
+            const altLine=cl+off;
+            const prob=pairOverProb(useMean,useSD,altLine-.5);
+            const fv=prob>=.5?Math.round(-prob/(1-prob)*100):Math.round((1-prob)/prob*100);
+            const isCurr=off===0;
+            let evCell="";
+            if(hasCo){const dec=co>0?co/100+1:100/Math.abs(co)+1;const ev=(prob*dec-1)*100;const eC=ev>0?"#22c55e":"#ef4444";
+              evCell=`<td style="padding:2px 4px;text-align:center;font-weight:700;color:${eC}">${ev>0?"+":""}${ev.toFixed(1)}%</td>`;}
+            altH+=`<tr style="${isCurr?"background:rgba(34,197,94,.08);font-weight:700":""}">
+              <td style="padding:2px 4px;${isCurr?"color:#22c55e":""}">O ${altLine}</td>
+              <td style="padding:2px 4px;text-align:center">${(prob*100).toFixed(1)}%</td>
+              <td style="padding:2px 4px;text-align:center;color:#22c55e;font-weight:700">${fA(fv)}</td>${evCell}</tr>`;}
+          altH+=`</table>`;}
+
+        h+=`<div style="flex:1;min-width:210px;padding:8px 12px;border-right:1px solid var(--bd)">
+          <div style="font-size:11px;font-family:var(--m);font-weight:700;color:var(--t1);margin-bottom:8px;letter-spacing:1px">${s}</div>
+          <div style="font-size:9px;font-family:var(--m);color:var(--t3);margin-bottom:2px">Season: ${p1Last} <b>${m1}</b>±${s1} · ${p2Last} <b>${m2}</b>±${s2} · r=<span style="color:${ccl(r)};font-weight:700">${r>0?"+":""}${r.toFixed(3)}</span></div>
+          <div style="font-size:9px;font-family:var(--m);color:var(--t3);margin-bottom:8px">Season combined: <b>${cm.toFixed(1)}</b> ± ${cs.toFixed(1)}</div>
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+            <span style="font-size:9px;font-family:var(--m);color:var(--t2);width:55px">${p1Last}</span>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="p1l" value="${escH(ci.p1l)}" placeholder="Line" style="width:48px;text-align:center;font-size:10px;padding:3px"/>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="p1o" value="${escH(ci.p1o)}" placeholder="FV" style="width:50px;text-align:center;font-size:10px;padding:3px"/>
+            ${im1S?`<span style="font-size:9px;font-family:var(--m);color:var(--t2)">μ=<b>${im1S}</b></span>`:""}
           </div>
-          <div style="font-size:9px;font-family:var(--m);color:var(--t3);margin-bottom:6px">
-            Combined: <b style="color:var(--t1)">${cm.toFixed(1)}</b> ± ${cs.toFixed(1)}  ·  r = <span style="color:${ccl(r)};font-weight:700">${r>0?"+":""}${r.toFixed(3)}</span>
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+            <span style="font-size:9px;font-family:var(--m);color:var(--t2);width:55px">${p2Last}</span>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="p2l" value="${escH(ci.p2l)}" placeholder="Line" style="width:48px;text-align:center;font-size:10px;padding:3px"/>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="p2o" value="${escH(ci.p2o)}" placeholder="FV" style="width:50px;text-align:center;font-size:10px;padding:3px"/>
+            ${im2S?`<span style="font-size:9px;font-family:var(--m);color:var(--t2)">μ=<b>${im2S}</b></span>`:""}
           </div>
-          <div style="display:flex;gap:4px;align-items:center">
-            <input class="inp cl" data-ck="${escA(key)}" value="${escH(ln)}" placeholder="Line" style="width:55px;text-align:center;font-size:11px;padding:4px"/>
-            <input class="inp co" data-ck="${escA(key)}" value="${escH(bo)}" placeholder="Odds" style="width:60px;text-align:center;font-size:11px;padding:4px"/>
-            <span style="font-size:10px;font-family:var(--m);color:var(--t2);margin-left:2px">FV:</span>
-            <span style="font-size:11px;font-family:var(--m);font-weight:800;color:#22c55e">${fvS}</span>
-            <span style="font-size:9px;font-family:var(--m);color:var(--t3)">${probS}</span>
-            <span style="font-size:12px;font-family:var(--m);font-weight:800;color:${eC};margin-left:2px">${evS}</span>
+          ${adjMeanS?`<div style="font-size:9px;font-family:var(--m);color:#22c55e;font-weight:700;margin-bottom:6px">Adj combined: ${adjMeanS} ± ${useSD.toFixed(1)}</div>`:""}
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:2px">
+            <span style="font-size:9px;font-family:var(--m);color:var(--t2)">FD combo</span>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="cl" value="${escH(ci.cl)}" placeholder="Line" style="width:48px;text-align:center;font-size:10px;padding:3px;font-weight:700"/>
+            <input class="inp ci" data-ck="${escA(key)}" data-cf="co" value="${escH(ci.co)}" placeholder="Odds" style="width:55px;text-align:center;font-size:10px;padding:3px;font-weight:700"/>
           </div>
+          ${altH}
         </div>`;
       });
       h+=`</div></div></td></tr>`;
@@ -530,8 +590,9 @@ function bindEvents(){
     if(e.target.tagName==="INPUT")return;
     const pk=el.dataset.pk;combExpand=combExpand===pk?null:pk;render();
   }));
-  document.querySelectorAll(".cl").forEach(el=>el.addEventListener("input",e=>{combLine[e.target.dataset.ck]=e.target.value;debouncedRender();}));
-  document.querySelectorAll(".co").forEach(el=>el.addEventListener("input",e=>{combBookOdds[e.target.dataset.ck]=e.target.value;debouncedRender();}));
+  document.querySelectorAll(".ci").forEach(el=>el.addEventListener("input",e=>{
+    const k=e.target.dataset.ck,f=e.target.dataset.cf;getCombIn(k)[f]=e.target.value;debouncedRender();
+  }));
 }
 
 render();
