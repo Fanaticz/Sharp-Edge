@@ -150,35 +150,36 @@ document.addEventListener("paste",e=>{
 let _debounceTimer=null;
 function debouncedRender(){clearTimeout(_debounceTimer);_debounceTimer=setTimeout(render,300);}
 
+// Focus state shared between render() and _render()
+let _focusSave=null;
+
 function render(){
-  // Skip render if user is typing in an expanded row input
+  // Skip DOM rebuild if user is typing in a data-entry input (odds, fair value, combined)
   const _ae=document.activeElement;
-  if(_ae&&_ae.classList&&_ae.classList.contains("ci"))return;
-  const fId=_ae?_ae.id:"";
-  const fCk=_ae?_ae.dataset?.ck:"";
-  const fCf=_ae?_ae.dataset?.cf:"";
-  const fCls=_ae?_ae.className:"";
-  const fSel=_ae?_ae.selectionStart:0;
+  if(_ae&&_ae.tagName==="INPUT"&&_ae.classList&&(_ae.classList.contains("so")||_ae.classList.contains("vf")||_ae.classList.contains("vg")||_ae.classList.contains("ci"))){
+    // Save data, skip DOM rebuild, schedule render for after blur
+    if(_ae.classList.contains("so")){sgpOdds[_ae.dataset.ci]=_ae.value;}
+    else if(_ae.classList.contains("vf")){vultureCalc[_ae.dataset.si]={...vultureCalc[_ae.dataset.si]||{},fair:_ae.value};}
+    else if(_ae.classList.contains("vg")){vultureCalc[_ae.dataset.si]={...vultureCalc[_ae.dataset.si]||{},sgpOdds:_ae.value};}
+    else if(_ae.classList.contains("ci")){const k=_ae.dataset.ck,f=_ae.dataset.cf;getCombIn(k)[f]=_ae.value;}
+    if(!_ae._blurBound){_ae._blurBound=true;_ae.addEventListener("blur",()=>render(),{once:true});}
+    return;
+  }
   // Save focus state before re-render
-  const ae=document.activeElement;
-  const focusId=ae?.id||null;
-  const focusCls=ae?.classList?[...ae.classList].find(c=>["so","vf","vg"].includes(c)):null;
-  const focusData=ae?.dataset?{ci:ae.dataset.ci,si:ae.dataset.si}:null;
-  const cursorPos=ae?.selectionStart??null;
-  const cursorEnd=ae?.selectionEnd??null;
+  _focusSave=null;
+  if(_ae&&_ae.classList){
+    const id=_ae.id||null;
+    const ck=_ae.dataset?.ck||null;
+    const cf=_ae.dataset?.cf||null;
+    const ci=_ae.dataset?.ci||null;
+    const si=_ae.dataset?.si||null;
+    const cls=_ae.className||"";
+    const pos=_ae.selectionStart??null;
+    const end=_ae.selectionEnd??null;
+    _focusSave={id,ck,cf,ci,si,cls,pos,end};
+  }
 
   _render();
-
-  // Restore focus after DOM rebuild
-  requestAnimationFrame(()=>{
-    let el=null;
-    if(focusId)el=document.getElementById(focusId);
-    else if(focusCls&&focusData){
-      const attr=focusData.ci!=null?"ci":"si";
-      el=document.querySelector(`.${focusCls}[data-${attr}="${focusData[attr]}"]`);
-    }
-    if(el){el.focus();if(cursorPos!=null){try{el.setSelectionRange(cursorPos,cursorEnd??cursorPos);}catch(e){}}}
-  });
 }
 
 function _render(){
@@ -199,12 +200,19 @@ function _render(){
   </div>
   <div style="max-width:1200px;margin:0 auto;padding:16px 20px">${tab==="scan"?rScan():tab==="corr"?rCorr():rComb()}</div>`;
   bindEvents();
-  // Restore focus
-  let el=null;
-  if(fId)el=document.getElementById(fId);
-  else if(fCk&&fCls.includes("ci")){const all=document.querySelectorAll(`.ci[data-ck="${fCk}"]`);all.forEach(x=>{if(x.dataset.cf===fCf)el=x;});}
-  else if(fCk){const sel=fCls.includes("cl")?".cl":".co";el=document.querySelector(`${sel}[data-ck="${fCk}"]`);}
-  if(el){el.focus();try{el.setSelectionRange(fSel,fSel);}catch(e){}}
+  // Restore focus using shared state from render()
+  if(_focusSave){
+    const f=_focusSave;
+    let el=null;
+    if(f.id)el=document.getElementById(f.id);
+    else if(f.cls.includes("ci")&&f.ck){const all=document.querySelectorAll(`.ci[data-ck="${f.ck}"]`);all.forEach(x=>{if(x.dataset.cf===f.cf)el=x;});}
+    else if(f.cls.includes("so")&&f.ci!=null)el=document.querySelector(`.so[data-ci="${f.ci}"]`);
+    else if(f.cls.includes("vf")&&f.si!=null)el=document.querySelector(`.vf[data-si="${f.si}"]`);
+    else if(f.cls.includes("vg")&&f.si!=null)el=document.querySelector(`.vg[data-si="${f.si}"]`);
+    else if(f.ck){const sel=f.cls.includes("cl")?".cl":".co";el=document.querySelector(`${sel}[data-ck="${f.ck}"]`);}
+    if(el){el.focus();try{el.setSelectionRange(f.pos,f.end??f.pos);}catch(e){}}
+    _focusSave=null;
+  }
 }
 
 function rScan(){
