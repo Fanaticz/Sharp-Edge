@@ -72,6 +72,9 @@ function getXR(n1,n2,s1,s2){
   return 0;
 }
 
+// Flip r when exactly one leg is Under (O/U bets against positive correlation)
+function dirR(r,d1,d2){const u1=d1==="Under",u2=d2==="Under";return(u1!==u2)?-r:r;}
+
 function buildCombos(lines){
   const byP={};for(const l of lines){if(!byP[l.playerName])byP[l.playerName]=[];byP[l.playerName].push(l);}
   const combos=[],singles=[];
@@ -82,7 +85,7 @@ function buildCombos(lines){
     for(let i=0;i<plines.length;i++)for(let j=i+1;j<plines.length;j++){
       const l1=plines[i],l2=plines[j];if(l1.stat===l2.stat)continue;
       const p1=a2p(l1.fairOdds),p2=a2p(l2.fairOdds);let pU=p1*p2,r=0;
-      if(pd)r=gc(pd,l1.stat,l2.stat)*(1-haircut/100);
+      if(pd)r=dirR(gc(pd,l1.stat,l2.stat),l1.dir,l2.dir)*(1-haircut/100);
       let pC=pU+r*Math.sqrt(p1*(1-p1)*p2*(1-p2));pC=Math.max(.001,Math.min(.999,pC));
       combos.push({name,l1,l2,r,pC,pU,fvC:p2a(pC),fvU:p2a(pU),pd,label:`${l1.label} + ${l2.label}`,xTeam:false});
     }
@@ -97,7 +100,7 @@ function buildCombos(lines){
     for(const l1 of byP[n1])for(const l2 of byP[n2]){
       // skip double unders
       if(l1.dir==="Under"&&l2.dir==="Under")continue;
-      let r=getXR(n1,n2,l1.stat,l2.stat)*(1-haircut/100);
+      let r=dirR(getXR(n1,n2,l1.stat,l2.stat),l1.dir,l2.dir)*(1-haircut/100);
       if(r===0)continue;// no data
       const p1=a2p(l1.fairOdds),p2=a2p(l2.fairOdds);let pU=p1*p2;
       let pC=pU+r*Math.sqrt(p1*(1-p1)*p2*(1-p2));pC=Math.max(.001,Math.min(.999,pC));
@@ -449,7 +452,7 @@ function rCombX(){
     });
   });
   const dir=tmSortDir==="desc"?-1:1;
-  if(tmSort==="r")rows.sort((a,b)=>(Math.abs(a.r)-Math.abs(b.r))*dir);
+  if(tmSort==="r")rows.sort((a,b)=>(a.r-b.r)*dir);
   else if(tmSort==="games")rows.sort((a,b)=>(a.games-b.games)*dir);
   else if(tmSort==="team")rows.sort((a,b)=>a.team.localeCompare(b.team)*-dir);
   const arrow=k=>tmSort===k?(tmSortDir==="desc"?" ↓":" ↑"):"";
