@@ -59,18 +59,58 @@ function findPD(n){const s=n.toLowerCase().trim();return D.find(p=>p[0].toLowerC
 function escH(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function escA(s){return String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 
+// XPAIRS cross-stat lookup: returns correlation between p1's s1 and p2's s2
+const _xsi={PTS:0,REB:1,AST:2,TPM:3};
+function getXR(n1,n2,s1,s2){
+  const a=n1.toLowerCase().trim(),b=n2.toLowerCase().trim();
+  const i1=_xsi[s1],i2=_xsi[s2];if(i1===undefined||i2===undefined)return 0;
+  for(const xp of XPAIRS){
+    const xn1=xp[1].toLowerCase(),xn2=xp[2].toLowerCase();
+    if((xn1===a||xn1.includes(a)||a.includes(xn1))&&(xn2===b||xn2.includes(b)||b.includes(xn2)))return xp[20+i1*4+i2];
+    if((xn1===b||xn1.includes(b)||b.includes(xn1))&&(xn2===a||xn2.includes(a)||a.includes(xn2)))return xp[20+i2*4+i1];
+  }
+  return 0;
+}
+
 function buildCombos(lines){
   const byP={};for(const l of lines){if(!byP[l.playerName])byP[l.playerName]=[];byP[l.playerName].push(l);}
   const combos=[],singles=[];
+  // Same-player combos (different stats)
   for(const[name,plines]of Object.entries(byP)){
     const pd=findPD(name);
-    if(plines.length<2){singles.push({name,line:plines[0],pd});continue;}
+    if(plines.length<2)continue;
     for(let i=0;i<plines.length;i++)for(let j=i+1;j<plines.length;j++){
       const l1=plines[i],l2=plines[j];if(l1.stat===l2.stat)continue;
       const p1=a2p(l1.fairOdds),p2=a2p(l2.fairOdds);let pU=p1*p2,r=0;
       if(pd)r=gc(pd,l1.stat,l2.stat)*(1-haircut/100);
       let pC=pU+r*Math.sqrt(p1*(1-p1)*p2*(1-p2));pC=Math.max(.001,Math.min(.999,pC));
-      combos.push({name,l1,l2,r,pC,pU,fvC:p2a(pC),fvU:p2a(pU),pd,label:`${l1.label} + ${l2.label}`});
+      combos.push({name,l1,l2,r,pC,pU,fvC:p2a(pC),fvU:p2a(pU),pd,label:`${l1.label} + ${l2.label}`,xTeam:false});
+    }
+  }
+  // Cross-player teammate combos (same team, use XPAIRS)
+  const names=Object.keys(byP);
+  for(let a=0;a<names.length;a++)for(let b=a+1;b<names.length;b++){
+    const n1=names[a],n2=names[b];
+    const pd1=findPD(n1),pd2=findPD(n2);
+    if(!pd1||!pd2||pd1[1]!==pd2[1])continue;// must be same team
+    const team=pd1[1];
+    for(const l1 of byP[n1])for(const l2 of byP[n2]){
+      // skip double unders
+      if(l1.dir==="Under"&&l2.dir==="Under")continue;
+      let r=getXR(n1,n2,l1.stat,l2.stat)*(1-haircut/100);
+      if(r===0)continue;// no data
+      const p1=a2p(l1.fairOdds),p2=a2p(l2.fairOdds);let pU=p1*p2;
+      let pC=pU+r*Math.sqrt(p1*(1-p1)*p2*(1-p2));pC=Math.max(.001,Math.min(.999,pC));
+      const shortN=n1.split(" ").pop()+" + "+n2.split(" ").pop();
+      combos.push({name:shortN,l1,l2,r,pC,pU,fvC:p2a(pC),fvU:p2a(pU),pd:pd1,
+        label:`${n1.split(" ").pop()} ${l1.label} + ${n2.split(" ").pop()} ${l2.label}`,xTeam:true,team});
+    }
+  }
+  // Singles: players not in any combo (same-player or cross-player)
+  for(const[name,plines]of Object.entries(byP)){
+    const inAnyCombo=combos.some(c=>c.l1.playerName===name||c.l2.playerName===name);
+    if(!inAnyCombo){
+      for(const l of plines)singles.push({name,line:l,pd:findPD(name)});
     }
   }
   combos.sort((a,b)=>a.fvC-b.fvC);return{combos,singles};
@@ -213,7 +253,8 @@ function rScan(){
     ${loadErr?`<div style="margin-top:8px;padding:8px 12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:6px;font-size:11px;color:#ef4444;font-family:var(--m)">⚠️ ${escH(loadErr)}</div>`:""}
     ${parsed?`<div style="margin-top:8px;display:flex;gap:12px;font-size:11px;font-family:var(--m)">
       <span style="color:var(--g)">✓ ${parsed.lines.length} lines</span>
-      <span style="color:var(--t2)">${parsed.combos.length} combos</span>
+      <span style="color:var(--t2)">${parsed.combos.filter(c=>!c.xTeam).length} self combos</span>
+      <span style="color:#818cf8">${parsed.combos.filter(c=>c.xTeam).length} teammate combos</span>
       <span style="color:#fbbf24">${parsed.singles.length} need Vulture</span></div>`:""}
   </div>`;
 
@@ -241,7 +282,8 @@ function rScan(){
               <div style="display:flex;align-items:center;gap:6px">
                 <span style="font-size:14px;font-weight:700">${c.name}</span>
                 ${ab?`<span style="font-size:9px;font-family:var(--m);font-weight:600;color:${tc};padding:1px 5px;border-radius:4px;background:${tc}18">${ab}</span>`:""}
-                ${mn?`<span style="font-size:9px;font-family:var(--m);color:var(--t3)">${mn}min</span>`:""}
+                ${c.xTeam?`<span style="font-size:8px;font-family:var(--m);font-weight:700;color:#818cf8;padding:1px 5px;border-radius:4px;background:rgba(129,140,248,.12)">TEAMMATE</span>`:""}
+                ${!c.xTeam&&mn?`<span style="font-size:9px;font-family:var(--m);color:var(--t3)">${mn}min</span>`:""}
                 ${bdg(c.r)}
               </div>
               <div style="font-size:11px;color:var(--t2);font-family:var(--m);margin-top:2px">${c.label}</div>
@@ -260,8 +302,8 @@ function rScan(){
             <button class="bs xb" data-ci="${ci}" style="font-size:10px;padding:3px 7px">${exp?"▲":"▼"}</button>
           </div>
           ${exp?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);display:grid;grid-template-columns:1fr 1fr;gap:6px">
-            <div style="padding:6px 8px;background:var(--s2);border-radius:5px;font-size:10px;font-family:var(--m)"><span style="color:var(--g);font-weight:700">${c.l1.stat}</span> ${c.l1.dir} ${c.l1.ln} — Fair ${fA(c.l1.fairOdds)} / Book ${fA(c.l1.bookOdds)}</div>
-            <div style="padding:6px 8px;background:var(--s2);border-radius:5px;font-size:10px;font-family:var(--m)"><span style="color:var(--g);font-weight:700">${c.l2.stat}</span> ${c.l2.dir} ${c.l2.ln} — Fair ${fA(c.l2.fairOdds)} / Book ${fA(c.l2.bookOdds)}</div>
+            <div style="padding:6px 8px;background:var(--s2);border-radius:5px;font-size:10px;font-family:var(--m)">${c.xTeam?`<b>${c.l1.playerName}</b> `:""}<span style="color:var(--g);font-weight:700">${c.l1.stat}</span> ${c.l1.dir} ${c.l1.ln} — Fair ${fA(c.l1.fairOdds)} / Book ${fA(c.l1.bookOdds)}</div>
+            <div style="padding:6px 8px;background:var(--s2);border-radius:5px;font-size:10px;font-family:var(--m)">${c.xTeam?`<b>${c.l2.playerName}</b> `:""}<span style="color:var(--g);font-weight:700">${c.l2.stat}</span> ${c.l2.dir} ${c.l2.ln} — Fair ${fA(c.l2.fairOdds)} / Book ${fA(c.l2.bookOdds)}</div>
             <div style="grid-column:1/-1;padding:6px 8px;background:var(--s2);border-radius:5px;font-size:10px;font-family:var(--m);display:flex;gap:14px">
               <span>Uncorr: <b>${fA(c.fvU)}</b></span><span>Corr: <b style="color:#22c55e">${fA(c.fvC)}</b></span>
               <span>r=<b style="color:${ccl(c.r)}">${c.r.toFixed(3)}</b></span>${c.pd?`<span style="color:var(--t3)">${c.pd[2]}g ${c.pd[3]}mpg</span>`:""}</div></div>`:""}
