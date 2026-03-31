@@ -77,7 +77,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
 // ─── DATA (loaded from JSON) ───
 let PAIRS = [];
 let PLAYERS = {};
-const BSTATS = ['H','R','RBI','HR','TB','BB','SB','SO'];
+const BSTATS = ['H','R','RBI','HR','TB','BB','SB','SO','HRR'];
 
 // Team abbreviations
 const TA = {"Arizona Diamondbacks":"ARI","Athletics":"OAK","Atlanta Braves":"ATL","Baltimore Orioles":"BAL","Boston Red Sox":"BOS","Chicago Cubs":"CHC","Chicago White Sox":"CWS","Cincinnati Reds":"CIN","Cleveland Guardians":"CLE","Colorado Rockies":"COL","Detroit Tigers":"DET","Houston Astros":"HOU","Kansas City Royals":"KC","Los Angeles Angels":"LAA","Los Angeles Dodgers":"LAD","Miami Marlins":"MIA","Milwaukee Brewers":"MIL","Minnesota Twins":"MIN","New York Mets":"NYM","New York Yankees":"NYY","Philadelphia Phillies":"PHI","Pittsburgh Pirates":"PIT","San Diego Padres":"SD","San Francisco Giants":"SF","Seattle Mariners":"SEA","St. Louis Cardinals":"STL","Tampa Bay Rays":"TB","Texas Rangers":"TEX","Toronto Blue Jays":"TOR","Washington Nationals":"WSH"};
@@ -234,7 +234,7 @@ function render() {
     <span style="font-size:10px;color:var(--t3);font-family:var(--m);font-weight:600">STAT PAIR:</span>
     <span class="stat-pill ${statF==="ALL"?"a":""}" onclick="statF='ALL';render()">ALL</span>`;
   
-  const popCombos = ["R-RBI","H-R","RBI-R","H-RBI","HR-RBI","R-H","TB-R","R-TB","BB-R","HR-R"];
+  const popCombos = ["R-RBI","H-R","RBI-R","H-RBI","HR-RBI","R-H","TB-R","R-TB","BB-R","HR-R","HRR-HRR"];
   for(const c of popCombos) {
     const [s1,s2] = c.split("-");
     html += `<span class="stat-pill ${statF===c?"a":""}" onclick="statF='${c}';render()">${s1}→${s2}</span>`;
